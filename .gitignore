@@ -1,0 +1,21 @@
+# Python Bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual Environment
+.venv/
+venv/
+ENV/
+
+# Security & Data Isolation
+.auth/
+*.json
+!credentials.json.example
+data/
+*.db
+*.sqlite3
+
+# OS Specific
+.DS_Store
+Thumbs.db

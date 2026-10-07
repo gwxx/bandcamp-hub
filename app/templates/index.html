@@ -1,0 +1,2730 @@
+<!DOCTYPE html>
+<html lang="zh-TW" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bandcamp Hub - 每週新發行淘歌中心</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Plus Jakarta Sans"', 'system-ui', 'sans-serif'],
+                        mono: ['"JetBrains Mono"', 'monospace']
+                    },
+                    colors: {
+                        bc: { 
+                            300: '#67e8f9',
+                            400: '#22d3ee', 
+                            500: '#06b6d4', 
+                            600: '#0891b2',
+                            glow: 'rgba(6, 182, 212, 0.35)'
+                        },
+                        amber: {
+                            400: '#fbbf24',
+                            500: '#f59e0b',
+                            600: '#d97706',
+                            glow: 'rgba(245, 158, 11, 0.4)'
+                        },
+                        studio: { 
+                            950: '#070709', 
+                            900: '#0d0d12', 
+                            850: '#121218', 
+                            800: '#171720', 
+                            750: '#1f1f2b', 
+                            700: '#272736',
+                            border: 'rgba(255, 255, 255, 0.08)'
+                        }
+                    },
+                    boxShadow: {
+                        'studio-glow': '0 0 25px -5px rgba(6, 182, 212, 0.25)',
+                        'amber-glow': '0 0 25px -5px rgba(245, 158, 11, 0.3)',
+                        'capsule': '0 20px 40px -10px rgba(0, 0, 0, 0.85), 0 0 20px -2px rgba(6, 182, 212, 0.2)'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* 自定義捲軸 */
+        .custom-scrollbar::-webkit-scrollbar { width: 5px; height: 5px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #0d0d12; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #272736; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #06b6d4; }
+        
+        /* 黑膠溝槽質感紋理 */
+        .vinyl-grooves {
+            background: repeating-radial-gradient(
+                circle at center,
+                #111111 0px,
+                #111111 2px,
+                #1e1e1e 3px,
+                #0d0d0d 4px
+            );
+        }
+
+        /* 33 RPM 黑膠旋轉動畫 */
+        @keyframes vinyl-spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .animate-vinyl-spin {
+            animation: vinyl-spin 3.5s linear infinite;
+        }
+
+        /* 唱針就位動態 */
+        .tonearm-active {
+            transform: rotate(18deg);
+            transform-origin: top right;
+            transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .tonearm-rest {
+            transform: rotate(0deg);
+            transform-origin: top right;
+            transition: transform 0.3s ease-out;
+        }
+
+        /* 鍵盤 HUD 提示動畫 */
+        @keyframes hud-fade {
+            0% { opacity: 0; transform: translate(-50%, 8px) scale(0.92); }
+            15% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+            80% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+            100% { opacity: 0; transform: translate(-50%, -8px) scale(0.95); }
+        }
+        .animate-hud {
+            animation: hud-fade 0.85s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        /* 選中卡片外光環 */
+        .selected-card {
+            border-color: #06b6d4 !important;
+            box-shadow: 0 0 0 2px rgba(6, 182, 212, 0.4), 0 10px 30px -5px rgba(6, 182, 212, 0.25) !important;
+            transform: translateY(-2px);
+        }
+
+        /* 音量 Range Input */
+        input[type=range] {
+            -webkit-appearance: none;
+            background: #272736;
+            border-radius: 9999px;
+            cursor: pointer;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 12px;
+            width: 12px;
+            border-radius: 50%;
+            background: #06b6d4;
+            box-shadow: 0 0 8px #06b6d4;
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+        input[type=range]::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+        }
+
+        /* 磨砂玻璃濾鏡 */
+        .glass-panel {
+            background: rgba(18, 18, 24, 0.82);
+            backdrop-filter: blur(16px) saturate(180%);
+            -webkit-backdrop-filter: blur(16px) saturate(180%);
+        }
+    </style>
+</head>
+<body class="bg-studio-950 text-zinc-100 min-h-screen flex flex-col font-sans select-none pb-40 custom-scrollbar antialiased">
+
+    <!-- 核心音訊節點 -->
+    <audio id="global-audio" preload="auto"></audio>
+
+    <!-- DJ 極速流鍵盤 HUD 提示浮層 -->
+    <div id="keyboard-hud" class="fixed bottom-28 left-1/2 z-50 pointer-events-none hidden px-4 py-1.5 rounded-full glass-panel border border-bc-500/50 shadow-studio-glow text-xs font-mono font-bold tracking-wider text-bc-400 flex items-center gap-2">
+        <span id="hud-icon">⚡</span>
+        <span id="hud-text">SPACE: PLAY</span>
+    </div>
+
+    <!-- 頂部 Studio 導航列 -->
+    <header class="sticky top-0 z-40 bg-studio-900/90 backdrop-blur-xl border-b border-studio-border px-6 py-3.5 flex items-center justify-between shadow-2xl transition">
+        <div class="flex items-center space-x-6">
+            <!-- 品牌 Logo + 呼吸指示燈 -->
+            <div class="flex items-center space-x-2.5">
+                <div class="relative flex items-center justify-center w-8 h-8 rounded-lg bg-studio-800 border border-studio-border">
+                    <span class="text-bc-400 text-lg font-black">⚡</span>
+                    <span class="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-bc-400 animate-ping"></span>
+                    <span class="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-bc-400"></span>
+                </div>
+                <div class="flex flex-col">
+                    <span class="text-base font-black tracking-widest text-zinc-100 flex items-center gap-1.5">
+                        BANDCAMP<span class="text-bc-400">HUB</span>
+                    </span>
+                    <span class="text-[10px] font-mono tracking-widest text-zinc-500 uppercase -mt-0.5">Studio Edition</span>
+                </div>
+            </div>
+
+            <!-- 離線模式警示 -->
+            <div id="offline-badge" class="hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-950/60 text-rose-300 border border-rose-800 animate-pulse">
+                ⚠️ 離線模式
+            </div>
+
+            <!-- 搜尋框 -->
+            <div class="relative w-76">
+                <input id="search-input" type="text" placeholder="搜尋藝人、作品 (Esc 清除)..." 
+                       class="w-full bg-studio-850 border border-studio-border rounded-xl pl-9 pr-8 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-bc-500 focus:ring-1 focus:ring-bc-500 transition shadow-inner font-sans">
+                <span class="absolute left-3 top-2.5 text-zinc-500 text-sm font-mono">⌕</span>
+                <span class="absolute right-2.5 top-2 px-1.5 py-0.5 rounded bg-studio-800 border border-studio-border text-[10px] font-mono text-zinc-400">Esc</span>
+                <button id="clear-search" class="absolute right-2.5 top-2 text-zinc-400 hover:text-zinc-200 hidden text-sm">✕</button>
+            </div>
+
+            <!-- 檢視模式切換膠囊 -->
+            <div class="flex bg-studio-850 p-1 rounded-xl border border-studio-border text-sm font-medium space-x-1">
+                <button onclick="setFilter('unlistened')" id="btn-flt-unlistened" class="px-3.5 py-1 rounded-lg bg-bc-500 text-white font-semibold transition shadow-sm flex items-center gap-1.5">
+                    <span>○</span> 未聽優先
+                </button>
+                <button onclick="setFilter('all')" id="btn-flt-all" class="px-3.5 py-1 rounded-lg text-zinc-400 hover:text-zinc-200 transition">
+                    全部發行
+                </button>
+                <button onclick="setFilter('starred')" id="btn-flt-starred" class="px-3 py-1 rounded-lg text-zinc-400 hover:text-amber-400 transition flex items-center justify-center text-base" title="收藏發行 (S)">
+                    <span>⭐</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- 右側操作：同步按鈕、設定、說明 -->
+        <div class="flex items-center space-x-2">
+            <div class="flex items-center space-x-1.5">
+                <select id="sync-limit-select" onchange="onSyncLimitChange(this.value)" class="bg-studio-850 hover:bg-studio-800 border border-studio-border rounded-xl px-2.5 py-2 text-xs font-mono text-zinc-200 focus:outline-none focus:border-bc-500 transition cursor-pointer" title="選擇單次同步數量上限">
+                    <option value="20">20 封</option>
+                    <option value="50" selected>50 封</option>
+                    <option value="100">100 封</option>
+                    <option value="200">200 封</option>
+                </select>
+                <button id="sync-btn" onclick="startSync(false)" class="px-4 py-2 rounded-xl bg-gradient-to-r from-bc-600 to-bc-500 hover:from-bc-500 hover:to-bc-400 font-semibold text-sm text-white flex items-center gap-2 shadow-lg shadow-bc-500/20 active:scale-95 transition">
+                    <span id="sync-icon">🔄</span>
+                    <span id="sync-text">立即同步</span>
+                </button>
+            </div>
+            <button onclick="openSettings()" class="p-2.5 rounded-xl bg-studio-850 hover:bg-studio-800 text-zinc-400 hover:text-zinc-200 border border-studio-border transition text-sm" title="設定與資料管理">
+                ⚙️
+            </button>
+            <button onclick="openHelp()" class="p-2.5 rounded-xl bg-studio-850 hover:bg-studio-800 text-zinc-400 hover:text-zinc-200 border border-studio-border transition text-sm" title="快捷鍵說明 (?)">
+                ❓
+            </button>
+        </div>
+    </header>
+
+    <!-- 頂部同步上限通知 Toast 橫條 (Toast Banner) -->
+    <div id="sync-toast-banner" class="hidden sticky top-[69px] z-40 max-w-[1560px] w-full mx-auto px-6 py-2 transition-all duration-300">
+        <div class="glass-panel border border-bc-500/40 rounded-2xl px-5 py-3 shadow-2xl flex items-center justify-between gap-4 text-xs font-mono text-zinc-200 bg-studio-900/95 backdrop-blur-xl">
+            <div class="flex items-center gap-2.5 min-w-0">
+                <span class="text-base text-bc-400 flex-shrink-0">ℹ️</span>
+                <span id="sync-toast-message" class="truncate font-medium">同步通知</span>
+            </div>
+            <div class="flex items-center gap-2 flex-shrink-0">
+                <button onclick="openSettings(); closeSyncToast();" class="px-3 py-1.5 rounded-xl bg-bc-600 hover:bg-bc-500 text-white font-semibold transition shadow-sm flex items-center gap-1">
+                    ⚙️ 前往設定重掃
+                </button>
+                <button onclick="closeSyncToast()" class="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-studio-800 transition" title="關閉通知">
+                    ✕
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 主工作台容器 (雙欄佈局：左側時間軸 + 右側主內容) -->
+    <div class="flex-1 max-w-[1560px] w-full mx-auto px-6 py-6 pb-28 flex gap-8">
+        
+        <!-- 左側邊欄：ISO 週別時間軸與淘歌統計 -->
+        <aside class="w-72 flex-shrink-0 hidden lg:block">
+            <div class="sticky top-20 space-y-5">
+                
+                <!-- 淘歌進度卡片 -->
+                <div class="p-4 rounded-2xl bg-studio-900/80 border border-studio-border glass-panel space-y-3 shadow-lg">
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm font-bold text-zinc-300 font-mono flex items-center gap-1.5">
+                            <span>📊</span> 淘歌進度總覽
+                        </span>
+                        <span id="stats-pct" class="text-sm font-mono font-bold text-bc-400">0%</span>
+                    </div>
+                    <div class="w-full bg-studio-800 h-2 rounded-full overflow-hidden">
+                        <div id="stats-bar" class="bg-gradient-to-r from-bc-500 to-bc-300 h-full w-0 rounded-full transition-all duration-500"></div>
+                    </div>
+                    <div class="flex justify-between text-xs font-mono text-zinc-400">
+                        <span>未聽: <strong id="stats-unlistened" class="text-zinc-200">0</strong></span>
+                        <span>總計: <strong id="stats-total" class="text-zinc-200">0</strong> 部</span>
+                    </div>
+                </div>
+
+                <!-- 週別時間軸列表 -->
+                <div class="p-3.5 rounded-2xl bg-studio-900/80 border border-studio-border glass-panel space-y-2 shadow-lg max-h-[calc(100vh-280px)] overflow-y-auto custom-scrollbar">
+                    <div class="text-xs font-mono font-bold text-zinc-500 uppercase tracking-wider px-2 py-1">
+                        📅 ISO WEEKS
+                    </div>
+                    <div id="timeline-weeks" class="space-y-1">
+                        <!-- 動態生成週別列表項目 -->
+                        <div class="text-sm text-zinc-500 font-mono py-2 text-center">載入中...</div>
+                    </div>
+                </div>
+
+            </div>
+        </aside>
+
+        <!-- 中央主要內容區塊 (黑膠卡片網格) -->
+        <main id="main-content" class="flex-1 min-w-0 space-y-8">
+            <div id="loading-state" class="text-center py-28 text-zinc-500 font-mono text-xs flex flex-col items-center gap-3">
+                <span class="text-2xl animate-spin">⏳</span>
+                <span>正在載入發行資料庫...</span>
+            </div>
+        </main>
+
+    </div>
+
+    <!-- 底部載入更多按鈕區塊 -->
+    <div id="load-more-container" class="max-w-[1560px] w-full mx-auto px-6 pb-28 text-center hidden">
+        <button id="load-more-btn" onclick="loadMoreWeeks()" class="px-8 py-3 bg-studio-850 hover:bg-studio-800 border border-studio-border hover:border-bc-500/50 rounded-2xl text-xs font-mono font-semibold text-zinc-300 hover:text-white transition shadow-lg flex items-center gap-2 mx-auto active:scale-95">
+            <span>↓</span> 載入更多歷史週別
+        </button>
+    </div>
+
+    <!-- 滿版貼底黑膠動態播放器 (Full-Width Docked Vinyl Player) -->
+    <footer id="player-dock" class="fixed bottom-0 inset-x-0 w-full z-50 transform translate-y-full transition-all duration-300 ease-out">
+        
+        <!-- 展開式多軌清單抽屜 (Multi-Track Drawer) -->
+        <div id="multi-track-drawer" class="hidden max-w-5xl mx-auto mb-2 rounded-2xl glass-panel border border-studio-border p-4 shadow-2xl space-y-2 max-h-56 overflow-y-auto custom-scrollbar">
+            <div class="flex items-center justify-between border-b border-studio-border pb-2 px-1">
+                <span class="text-sm font-mono font-bold text-bc-400 flex items-center gap-1.5">
+                    <span>🎛️</span> <span id="drawer-release-title">Release Tracks</span>
+                </span>
+                <button onclick="toggleMultiTrackDrawer()" class="text-zinc-500 hover:text-zinc-300 text-sm">✕</button>
+            </div>
+            <div id="drawer-track-list" class="space-y-1">
+                <!-- 動態注入多軌 -->
+            </div>
+        </div>
+
+        <!-- 滿版底部控制列主體 (頂部細邊框與毛玻璃暗色質感) -->
+        <div class="w-full bg-studio-900/95 backdrop-blur-xl border-t border-studio-border shadow-2xl px-6 py-3">
+            <div class="max-w-[1600px] w-full mx-auto flex items-center justify-between gap-6 relative group">
+            
+            <!-- 1. 左側：旋轉微型黑膠唱盤 + 曲目中繼資訊 -->
+            <div class="flex items-center space-x-3.5 min-w-0 flex-shrink-0">
+                <!-- 微型黑膠唱盤 -->
+                <div class="relative w-12 h-12 flex-shrink-0 flex items-center justify-center">
+                    <a id="dock-vinyl-link" href="#" target="_blank" rel="noopener noreferrer" title="在 Bandcamp 開啟">
+                        <div id="dock-vinyl-disc" class="w-12 h-12 rounded-full vinyl-grooves border border-zinc-800 flex items-center justify-center shadow-lg transition-transform duration-300">
+                            <img id="dock-cover" src="" class="w-6 h-6 rounded-full object-cover border border-zinc-900" onerror="handleImgError(this)">
+                        </div>
+                    </a>
+                    <!-- 微型唱針 -->
+                    <div id="dock-tonearm" class="tonearm-rest absolute -top-1 -right-1 w-4 h-5 pointer-events-none text-zinc-400 text-xs">
+                        \
+                    </div>
+                </div>
+
+                <!-- 曲目與藝人標題 (支援點擊展開多軌清單，放寬至 max-w-xs) -->
+                <div class="min-w-0 max-w-xs">
+                    <div class="flex items-center gap-1.5">
+                        <button onclick="jumpToActiveReleaseCard(); toggleMultiTrackDrawer();" id="dock-title-link" class="text-sm font-bold text-zinc-100 truncate hover:text-bc-400 transition text-left block" title="點擊展開全曲目清單並捲動至卡片">
+                            Title
+                        </button>
+                        <span id="dock-track-badge" class="hidden text-[11px] px-1.5 py-0.2 rounded bg-studio-800 text-bc-400 border border-studio-border font-mono flex-shrink-0">多軌</span>
+                    </div>
+                    <a id="dock-artist-link" href="#" target="_blank" class="block text-xs text-zinc-400 truncate hover:text-zinc-200 transition" title="前往藝人頁面">
+                        Artist
+                    </a>
+                </div>
+            </div>
+
+            <!-- 2. 中間：核心控制鍵 + DJ BPM 變速膠囊 + 傳統進度條 (擴充至 max-w-4xl) -->
+            <div class="flex-1 max-w-4xl flex items-center space-x-4 px-2 min-w-0">
+                
+                <!-- 核心播放按鈕組 (圖示加大至 w-5 h-5，主播放鍵加大至 w-11 h-11) -->
+                <div class="flex items-center space-x-1.5">
+                    <!-- 倒帶 10 秒 (增大二度至 h-9 px-3 text-sm font-bold) -->
+                    <button onclick="seekRelative(-10)" class="text-zinc-400 hover:text-bc-400 hover:bg-studio-800 rounded-full transition text-sm font-bold font-mono flex items-center justify-center gap-1 px-3 h-9 flex-shrink-0" title="倒帶 10 秒 (←)">
+                        <span class="text-sm">⏪</span><span>10</span>
+                    </button>
+
+                    <!-- 上一首 -->
+                    <button onclick="playPrevTrack()" class="p-2 text-zinc-400 hover:text-white hover:bg-studio-800 rounded-full transition" title="上一首 ([)">
+                        <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg>
+                    </button>
+                    
+                    <!-- 播放 / 暫停按鈕 (加大至 w-11 h-11) -->
+                    <button id="btn-main-play" onclick="togglePlayPause()" class="w-11 h-11 bg-gradient-to-tr from-bc-500 to-bc-300 hover:from-bc-400 hover:to-bc-200 text-studio-950 font-black rounded-full flex items-center justify-center shadow-studio-glow transition transform hover:scale-105 active:scale-95 flex-shrink-0" title="播放 / 暫停 (Space)">
+                        <span id="play-icon" class="text-base ml-0.5">▶</span>
+                    </button>
+                    
+                    <!-- 下一首 -->
+                    <button onclick="playNextTrack()" class="p-2 text-zinc-400 hover:text-white hover:bg-studio-800 rounded-full transition" title="下一首 (])">
+                        <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
+                    </button>
+
+                    <!-- 快轉 10 秒 (增大二度至 h-9 px-3 text-sm font-bold) -->
+                    <button onclick="seekRelative(10)" class="text-zinc-400 hover:text-bc-400 hover:bg-studio-800 rounded-full transition text-sm font-bold font-mono flex items-center justify-center gap-1 px-3 h-9 flex-shrink-0" title="快轉 10 秒 (→)">
+                        <span>10</span><span class="text-sm">⏩</span>
+                    </button>
+                </div>
+
+                <!-- 比例跳轉 Cue 標籤、DJ BPM 控制器與傳統線性進度條 -->
+                <div class="flex-1 flex flex-col justify-center space-y-1.5 min-w-0">
+                    <div class="flex items-center justify-between px-0.5">
+                        <!-- 快速比例跳轉 Cue 點 + DJ BPM 控制器膠囊 -->
+                        <div class="flex items-center space-x-1.5">
+                            <button onclick="jumpToFraction(1/3)" class="px-2 py-0.5 rounded bg-studio-800/80 hover:bg-bc-500/20 text-[11px] font-mono text-zinc-400 hover:text-bc-400 border border-studio-border hover:border-bc-500/40 transition" title="跳至 1/3 (數字鍵 1)">
+                                1/3
+                            </button>
+                            <button onclick="jumpToFraction(0.5)" class="px-2 py-0.5 rounded bg-studio-800/80 hover:bg-bc-500/20 text-[11px] font-mono text-zinc-400 hover:text-bc-400 border border-studio-border hover:border-bc-500/40 transition" title="跳至 1/2 (數字鍵 2)">
+                                1/2
+                            </button>
+                            <button onclick="jumpToFraction(2/3)" class="px-2 py-0.5 rounded bg-studio-800/80 hover:bg-bc-500/20 text-[11px] font-mono text-zinc-400 hover:text-bc-400 border border-studio-border hover:border-bc-500/40 transition" title="跳至 2/3 (數字鍵 3)">
+                                2/3
+                            </button>
+
+                            <!-- DJ BPM / 變速控制器膠囊 -->
+                            <div class="relative inline-block ml-1">
+                                <button id="btn-bpm-toggle" onclick="toggleBpmPanel()" class="px-2.5 py-0.5 rounded-lg bg-studio-800/90 hover:bg-bc-500/20 border border-studio-border hover:border-bc-500/40 text-[11px] font-mono text-zinc-300 hover:text-bc-400 transition flex items-center gap-1.5 shadow-sm" title="DJ 變速控制與 BPM 設定">
+                                    <span class="text-bc-400 text-xs">⚡</span>
+                                    <span id="dock-bpm-text">-- BPM (1.0x)</span>
+                                </button>
+                                
+                                <!-- DJ 變速微調與智慧分析面板 (Popover，向上彈出) -->
+                                <div id="bpm-panel" class="hidden absolute bottom-full mb-3 left-0 w-80 glass-panel border border-studio-border rounded-2xl p-4 shadow-2xl space-y-3 z-50 text-xs font-mono select-none">
+                                    <div class="flex items-center justify-between border-b border-studio-border pb-2">
+                                        <span class="text-xs font-bold text-bc-400 flex items-center gap-1.5">
+                                            <span>🎛️</span> DJ TEMPO & BPM
+                                        </span>
+                                        <button onclick="toggleBpmPanel()" class="text-zinc-500 hover:text-zinc-300 text-xs">✕</button>
+                                    </div>
+                                    
+                                    <!-- 1. 基準 BPM 智慧分析與編輯區塊 -->
+                                    <div class="p-2.5 rounded-xl bg-studio-900/90 border border-studio-border/80 space-y-2">
+                                        <div class="flex items-center justify-between text-zinc-400 text-[11px]">
+                                            <span>基準節奏 (Base BPM)</span>
+                                            <span id="bpm-status-tag" class="text-[10px] text-zinc-500">未設定</span>
+                                        </div>
+
+                                         <!-- 自動分析按鈕 -->
+                                        <div id="bpm-action-container">
+                                            <button id="btn-analyze-bpm" onclick="startBpmAnalysis()" title="此 BPM 將作為此 Release 之基準節奏" class="w-full py-1.5 px-3 rounded-lg bg-bc-500/20 hover:bg-bc-500/30 text-bc-400 border border-bc-500/40 text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm active:scale-95">
+                                                <span id="analyze-icon">🔍</span>
+                                                <span id="analyze-text">分析目前播放曲目 BPM</span>
+                                            </button>
+                                        </div>
+
+                                        <!-- 暫存檢視與微調區塊 (-2 / +2, Edit, Save) -->
+                                        <div id="bpm-staged-container" class="space-y-2 pt-1 hidden">
+                                            <!-- 數值顯示與微調 (-2 / +2) -->
+                                            <div id="bpm-display-mode" class="flex items-center justify-between gap-1.5">
+                                                <button onclick="nudgeStagedBpm(-2)" class="px-2.5 py-1 rounded-lg bg-studio-800 hover:bg-studio-750 text-zinc-300 hover:text-bc-400 border border-studio-border text-xs font-bold transition active:scale-95" title="減少 2 BPM">
+                                                    -2
+                                                </button>
+                                                <div class="flex-1 text-center font-bold text-base text-bc-400 tracking-wider">
+                                                    <span id="staged-bpm-val">124</span> <span class="text-[11px] text-zinc-400 font-normal">BPM</span>
+                                                </div>
+                                                <button onclick="nudgeStagedBpm(2)" class="px-2.5 py-1 rounded-lg bg-studio-800 hover:bg-studio-750 text-zinc-300 hover:text-bc-400 border border-studio-border text-xs font-bold transition active:scale-95" title="增加 2 BPM">
+                                                    +2
+                                                </button>
+                                                <button onclick="toggleBpmEditMode()" class="px-2.5 py-1 rounded-lg bg-studio-800 hover:bg-studio-750 text-zinc-300 hover:text-white border border-studio-border text-[11px] transition" title="自訂輸入 BPM">
+                                                    ✏️ Edit
+                                                </button>
+                                            </div>
+
+                                            <!-- 手動自訂輸入與 Tap 測速模式 (點擊 Edit 切換) -->
+                                            <div id="bpm-edit-mode" class="hidden space-y-2 pt-1 border-t border-studio-border/60">
+                                                <div class="flex items-center gap-1.5">
+                                                    <span class="text-zinc-400 text-[11px] flex-shrink-0">數值:</span>
+                                                    <input id="custom-bpm-input" type="number" min="40" max="300" step="0.5" placeholder="124" class="flex-1 min-w-0 bg-studio-950 border border-bc-500/50 rounded-lg px-2 py-1 text-xs text-zinc-100 font-mono focus:outline-none focus:border-bc-500">
+                                                    <button onclick="nudgeCustomBpmInput(-2)" class="px-2 py-1 rounded-lg bg-studio-800 hover:bg-studio-750 text-zinc-300 hover:text-bc-400 border border-studio-border text-xs font-bold transition active:scale-95" title="減少 2 BPM">
+                                                        -2
+                                                    </button>
+                                                    <button onclick="nudgeCustomBpmInput(2)" class="px-2 py-1 rounded-lg bg-studio-800 hover:bg-studio-750 text-zinc-300 hover:text-bc-400 border border-studio-border text-xs font-bold transition active:scale-95" title="增加 2 BPM">
+                                                        +2
+                                                    </button>
+                                                </div>
+                                                <div class="flex items-center justify-between gap-1.5">
+                                                    <button id="btn-tap-tempo" onclick="handleTapTempo()" class="flex-1 py-1 px-2 rounded-lg bg-studio-800 hover:bg-bc-500/20 text-zinc-300 hover:text-bc-400 border border-studio-border hover:border-bc-500/40 text-xs font-bold transition flex items-center justify-center gap-1 active:scale-95" title="點擊打拍或按鍵盤 T 鍵">
+                                                        <span>🥁</span> <span id="tap-tempo-label">Tap (T)</span>
+                                                    </button>
+                                                    <button onclick="applyCustomBpmInput()" class="px-3 py-1 rounded-lg bg-bc-500 hover:bg-bc-400 text-white font-semibold text-xs transition active:scale-95">
+                                                        套用
+                                                    </button>
+                                                    <button onclick="toggleBpmEditMode()" class="px-2 py-1 rounded-lg bg-studio-800 hover:bg-studio-750 text-zinc-400 hover:text-zinc-200 border border-studio-border text-xs transition" title="取消">
+                                                        ✕
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            <!-- 確認儲存按鈕 (動態顯示，僅在有微調未儲存時顯示) -->
+                                            <button onclick="commitStagedBpm()" id="btn-save-staged-bpm" class="hidden w-full py-1.5 rounded-lg bg-bc-500 hover:bg-bc-400 text-white font-bold text-xs shadow-sm transition active:scale-95 flex items-center justify-center gap-1">
+                                                ✓ 確認儲存至資料庫
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <!-- 2. 即時播放速度推桿 (Master Tempo 變速不變調) -->
+                                    <div class="space-y-1.5 pt-1 border-t border-studio-border/70">
+                                        <div class="flex items-center justify-between text-xs">
+                                            <span class="text-zinc-400">速度微調: <strong id="bpm-pitch-val" class="text-zinc-100 font-bold">+0.0 BPM (1.00x)</strong></span>
+                                            <span class="text-zinc-400">實時: <strong id="bpm-effective-val" class="text-bc-400 font-bold">-- BPM</strong></span>
+                                        </div>
+                                        
+                                        <div>
+                                            <input type="range" min="0.80" max="1.20" step="0.005" value="1.0" id="bpm-pitch-slider" class="w-full h-1" oninput="changePitch(this.value)">
+                                            <div class="flex justify-between text-[10px] text-zinc-500 font-mono mt-0.5">
+                                                <span id="slider-label-min">-24 BPM</span>
+                                                <span>原速 (1.0x)</span>
+                                                <span id="slider-label-max">+24 BPM</span>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="flex items-center justify-between gap-1.5 pt-1">
+                                            <button onclick="nudgeBpmPitch(-1)" class="flex-1 py-1 rounded-lg bg-studio-800 hover:bg-studio-750 text-zinc-300 hover:text-bc-400 border border-studio-border text-xs font-bold transition">-1 BPM</button>
+                                            <button onclick="resetPitch()" class="flex-1 py-1 rounded-lg bg-studio-800 hover:bg-studio-750 text-zinc-300 hover:text-white border border-studio-border text-xs transition">原速 (1.0x)</button>
+                                            <button onclick="nudgeBpmPitch(1)" class="flex-1 py-1 rounded-lg bg-studio-800 hover:bg-studio-750 text-zinc-300 hover:text-bc-400 border border-studio-border text-xs font-bold transition">+1 BPM</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-1 text-xs font-mono">
+                            <span id="time-current" class="text-zinc-300">0:00</span>
+                            <span class="text-zinc-600">/</span>
+                            <span id="time-duration" class="text-zinc-500">0:00</span>
+                        </div>
+                    </div>
+                    
+                    <!-- 傳統線性進度條 -->
+                    <div class="relative h-4 flex items-center cursor-pointer group/progress select-none" id="progress-bar-container">
+                        <!-- 懸停時間預覽 Tooltip -->
+                        <div id="progress-hover-tooltip" class="absolute -top-7 hidden -translate-x-1/2 px-1.5 py-0.5 rounded-md bg-studio-900 border border-bc-500/40 text-[10px] font-mono text-bc-400 pointer-events-none shadow-lg z-20">
+                            0:00
+                        </div>
+
+                        <!-- 軌道本體 -->
+                        <div class="w-full bg-studio-800 h-1.5 rounded-full relative overflow-hidden border border-studio-border">
+                            <span class="absolute left-[33.33%] top-0 bottom-0 w-0.5 bg-white/20 z-10 pointer-events-none"></span>
+                            <span class="absolute left-[50%] top-0 bottom-0 w-0.5 bg-white/25 z-10 pointer-events-none"></span>
+                            <span class="absolute left-[66.66%] top-0 bottom-0 w-0.5 bg-white/20 z-10 pointer-events-none"></span>
+
+                            <!-- 電光青進度填滿條 -->
+                            <div id="progress-bar-fill" class="bg-gradient-to-r from-bc-500 to-bc-300 h-full w-0 rounded-full relative">
+                            </div>
+                        </div>
+
+                        <!-- 發光滑塊 Thumb -->
+                        <span id="progress-bar-thumb" class="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 w-3.5 h-3.5 bg-white rounded-full opacity-0 group-hover/progress:opacity-100 transition-opacity shadow-studio-glow pointer-events-none z-20"></span>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- 3. 右側：隨機/循環、音量推桿、收藏星號、已聽(打勾圈Icon)、原站外連(BC Logo) (加大安全邊距與圖示至 w-5 h-5) -->
+            <div class="flex items-center space-x-3 flex-shrink-0">
+                
+                <!-- 隨機播放 (加大至 w-5 h-5) -->
+                <button id="btn-shuffle" onclick="toggleShuffle()" class="p-1.5 text-zinc-500 hover:text-white transition" title="隨機播放">
+                    <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"/></svg>
+                </button>
+                
+                <!-- 循環播放 (加大至 w-5 h-5) -->
+                <button id="btn-loop" onclick="toggleLoop()" class="p-1.5 text-zinc-500 hover:text-white transition" title="循環播放">
+                    <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M7 7h10v3l4-4-4-4v3H5v6h2V7zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2v4z"/></svg>
+                </button>
+
+                <!-- 音量控制 -->
+                <div class="flex items-center space-x-1.5 pl-1">
+                    <button id="btn-mute" onclick="toggleMute()" class="text-zinc-400 hover:text-white text-base p-1.5" title="靜音 (M)">
+                        🔊
+                    </button>
+                    <input id="volume-slider" type="range" min="0" max="1" step="0.01" value="0.8" class="w-20 h-1.5" oninput="changeVolume(this.value)">
+                </div>
+
+                <!-- 收藏愛心 (Star / Heart) (加大至 text-lg) -->
+                <button id="dock-btn-star" class="text-zinc-500 hover:text-amber-400 text-lg transition p-1.5" title="收藏 (S)">
+                    ⭐
+                </button>
+
+                <!-- 標記已聽 (打勾圓圈單一 Icon，加大至 w-5 h-5) -->
+                <button id="dock-btn-listen" class="p-1.5 text-zinc-400 hover:text-bc-400 transition" title="標記已聽 (L)">
+                    <span id="dock-listen-icon-wrap">
+                        <svg class="w-5 h-5 fill-none stroke-current stroke-2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/></svg>
+                    </span>
+                </button>
+
+                <!-- Bandcamp 原站外連 (Bandcamp Logo SVG，加大至 w-5 h-5，保留邊界保護距) -->
+                <a id="dock-cover-link" href="#" target="_blank" rel="noopener noreferrer" class="p-1.5 text-zinc-400 hover:text-bc-400 transition" title="在 Bandcamp 開啟 (O)">
+                    <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M0 18.75l7.437-13.5H24l-7.438 13.5H0z"/></svg>
+                </a>
+            </div>
+        </div>
+    </div>
+</footer>
+
+    <!-- 設定 Modal -->
+    <div id="settings-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+        <div class="glass-panel border border-studio-border rounded-2xl max-w-lg w-full p-6 space-y-6 shadow-2xl">
+            <div class="flex justify-between items-center border-b border-studio-border pb-3">
+                <h3 class="font-bold text-base text-zinc-100 flex items-center gap-2">
+                    <span>⚙️</span> 系統設定與資料維護
+                </h3>
+                <button onclick="closeSettings()" class="text-zinc-500 hover:text-zinc-300">✕</button>
+            </div>
+
+            <div class="space-y-2">
+                <label class="text-xs font-mono font-semibold text-zinc-400">GMAIL OAUTH 桌面憑證 (credentials.json)</label>
+                <div class="flex gap-2">
+                    <input type="file" id="cred-file" class="hidden" onchange="uploadCreds(this)">
+                    <button onclick="document.getElementById('cred-file').click()" class="flex-1 py-2 bg-studio-800 hover:bg-studio-750 border border-studio-border rounded-xl text-xs font-mono">
+                        上傳 credentials.json
+                    </button>
+                    <button id="auth-connect-btn" onclick="handleAuthAction()" class="px-4 py-2 bg-bc-500 hover:bg-bc-600 font-semibold rounded-xl text-xs font-mono text-white">
+                        連結帳號
+                    </button>
+                </div>
+            </div>
+
+            <div class="space-y-2 border-t border-studio-border pt-4">
+                <label class="text-xs font-mono font-semibold text-zinc-400">資料維護與匯出</label>
+                <div class="grid grid-cols-2 gap-2">
+                    <button onclick="startSync(true)" class="py-2 bg-studio-800 hover:bg-studio-750 border border-studio-border rounded-xl text-xs font-mono text-zinc-200">
+                        🔄 強制重新掃描 30 天
+                    </button>
+                    <button onclick="window.location.href='/api/export/csv?filter=starred'" class="py-2 bg-studio-800 hover:bg-studio-750 border border-studio-border rounded-xl text-xs font-mono text-amber-400">
+                        📥 匯出 ⭐ 收藏 (CSV)
+                    </button>
+                </div>
+            </div>
+
+            <div class="space-y-2 border-t border-rose-950/60 pt-4">
+                <label class="text-xs font-mono font-semibold text-rose-400">危險區域 (DANGER ZONE)</label>
+                <p class="text-[11px] text-zinc-500">清空資料庫前系統將自動建立備份快照。請輸入 RESET 確認：</p>
+                <div class="flex gap-2">
+                    <input id="reset-confirm-input" type="text" placeholder="RESET" class="flex-1 bg-studio-950 border border-rose-900/60 rounded-xl px-3 py-1.5 text-xs text-rose-200 font-mono">
+                    <button onclick="submitReset()" class="px-4 py-1.5 bg-rose-600 hover:bg-rose-700 text-white font-semibold rounded-xl text-xs font-mono">
+                        清空重設
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 快捷鍵指南 Modal -->
+    <div id="help-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+        <div class="glass-panel border border-studio-border rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+            <div class="flex justify-between items-center border-b border-studio-border pb-2.5">
+                <h3 class="font-bold text-base text-bc-400 flex items-center gap-2">
+                    <span>⚡</span> 淘歌極速鍵盤流指南
+                </h3>
+                <button onclick="closeHelp()" class="text-zinc-500 hover:text-zinc-300">✕</button>
+            </div>
+            <div class="space-y-2 text-sm text-zinc-300 font-mono">
+                <div class="flex justify-between py-1.5 border-b border-studio-border/60"><span class="text-bc-400 font-bold">Space</span><span>播放 / 暫停</span></div>
+                <div class="flex justify-between py-1.5 border-b border-studio-border/60"><span class="text-bc-400 font-bold">[ / ]</span><span>上一首 / 下一首</span></div>
+                <div class="flex justify-between py-1.5 border-b border-studio-border/60"><span class="text-bc-400 font-bold">← / →</span><span>倒帶 10 秒 / 快轉 10 秒</span></div>
+                <div class="flex justify-between py-1.5 border-b border-studio-border/60"><span class="text-bc-400 font-bold">1 / 2 / 3</span><span>快速跳轉至 1/3、1/2、2/3</span></div>
+                <div class="flex justify-between py-1.5 border-b border-studio-border/60"><span class="text-bc-400 font-bold">J / K</span><span>向下 / 向上 選取作品卡片</span></div>
+                <div class="flex justify-between py-1.5 border-b border-studio-border/60"><span class="text-bc-400 font-bold">Enter</span><span>載入選取作品並開始試聽</span></div>
+                <div class="flex justify-between py-1.5 border-b border-studio-border/60"><span class="text-bc-400 font-bold">L</span><span>切換 已聽 / 未聽 狀態</span></div>
+                <div class="flex justify-between py-1.5 border-b border-studio-border/60"><span class="text-bc-400 font-bold">S</span><span>切換 ⭐ 收藏 標記</span></div>
+                <div class="flex justify-between py-1.5 border-b border-studio-border/60"><span class="text-bc-400 font-bold">O</span><span>在 Bandcamp 原站開啟當前作品</span></div>
+                <div class="flex justify-between py-1.5 border-b border-studio-border/60"><span class="text-bc-400 font-bold">M</span><span>靜音切換</span></div>
+                <div class="flex justify-between py-1.5 border-b border-studio-border/60"><span class="text-bc-400 font-bold">Esc</span><span>清除搜尋 / 關閉播放器或彈窗</span></div>
+                <div class="flex justify-between py-1.5"><span class="text-bc-400 font-bold">?</span><span>開啟本快捷鍵說明</span></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript 核心控制邏輯 -->
+    <script>
+        let currentFilter = 'unlistened';
+        let currentQuery = '';
+        let limitWeeks = 12;
+        let totalWeeksCount = 0;
+        let releasesData = [];
+        let flatCards = [];
+        let selectedIndex = -1;
+        let activeRelease = null;
+        let activeTrackIndex = 0;
+        let activeTimer = null;
+        let searchDebounce = null;
+        let isMuted = false;
+        let previousVolume = 0.8;
+        let isShuffle = false;
+        let isLoop = false;
+        let hudTimer = null;
+        let currentPitch = 1.0;
+        let isRefreshingStream = false;
+        const tabChannelId = Math.random().toString(36).substring(2);
+        let stagedBpm = null;
+        let isAnalyzingBpm = false;
+        let pendingListenedReleaseId = null;
+
+        // 卡片專屬圖示 (14px ~ 16px)
+        const BC_LOGO_SVG = `<svg class="w-3.5 h-3.5 fill-current inline-block" viewBox="0 0 24 24"><path d="M0 18.75l7.437-13.5H24l-7.438 13.5H0z"/></svg>`;
+        const ICON_CHECKED = `<svg class="w-4 h-4 fill-bc-400" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>`;
+        const ICON_UNCHECKED = `<svg class="w-4 h-4 fill-none stroke-current stroke-2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/></svg>`;
+
+        // 底部播放器膠囊專屬圖示 (放大一度至 20px / w-5 h-5)
+        const DOCK_BC_LOGO_SVG = `<svg class="w-5 h-5 fill-current inline-block" viewBox="0 0 24 24"><path d="M0 18.75l7.437-13.5H24l-7.438 13.5H0z"/></svg>`;
+        const DOCK_ICON_CHECKED = `<svg class="w-5 h-5 fill-bc-400" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>`;
+        const DOCK_ICON_UNCHECKED = `<svg class="w-5 h-5 fill-none stroke-current stroke-2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/></svg>`;
+
+        let playedTracks = new Set();
+        try {
+            const savedPlayed = JSON.parse(localStorage.getItem('bc_hub_played_tracks') || '[]');
+            playedTracks = new Set(savedPlayed);
+        } catch (e) {
+            playedTracks = new Set();
+        }
+
+        function markTrackPlayed(relId, trackIdx) {
+            const key = `${relId}_${trackIdx}`;
+            if (!playedTracks.has(key)) {
+                playedTracks.add(key);
+                try {
+                    localStorage.setItem('bc_hub_played_tracks', JSON.stringify([...playedTracks]));
+                } catch (e) {}
+                updateTrackHighlighting();
+            }
+        }
+
+        function isTrackPlayed(relId, trackIdx) {
+            return playedTracks.has(`${relId}_${trackIdx}`);
+        }
+
+        function updateTrackHighlighting() {
+            document.querySelectorAll('.release-card').forEach(card => {
+                const rId = parseInt(card.dataset.id, 10);
+                const trackItems = card.querySelectorAll('.track-item');
+                trackItems.forEach((item, tIdx) => {
+                    if (item.classList.contains('cursor-not-allowed')) return;
+                    const isCur = activeRelease && activeRelease.id === rId && activeTrackIndex === tIdx;
+                    const isPlayed = isTrackPlayed(rId, tIdx);
+                    const iconSpan = item.querySelector('.track-play-icon');
+
+                    if (isCur) {
+                        item.className = "track-item flex items-center justify-between py-1 px-2 rounded-lg text-xs transition cursor-pointer bg-bc-500/20 text-bc-400 font-bold border border-bc-500/40 shadow-sm";
+                        if (iconSpan) {
+                            iconSpan.className = "track-play-icon w-3 text-center text-[10px] text-bc-400 font-bold";
+                            iconSpan.innerText = audio && !audio.paused ? '⏸' : '▶';
+                        }
+                    } else if (isPlayed) {
+                        item.className = "track-item flex items-center justify-between py-1 px-2 rounded-lg text-xs transition cursor-pointer text-zinc-500 opacity-60 hover:text-zinc-300 hover:opacity-100";
+                        if (iconSpan) {
+                            iconSpan.className = "track-play-icon w-3 text-center text-[10px] text-zinc-500";
+                            iconSpan.innerText = '▶';
+                        }
+                    } else {
+                        item.className = "track-item flex items-center justify-between py-1 px-2 rounded-lg text-xs transition cursor-pointer hover:bg-studio-800 text-zinc-300";
+                        if (iconSpan) {
+                            iconSpan.className = "track-play-icon w-3 text-center text-[10px] text-zinc-500";
+                            iconSpan.innerText = '▶';
+                        }
+                    }
+                });
+            });
+        }
+
+        function getIsoWeekRange(isoWeekStr) {
+            if (!isoWeekStr || !isoWeekStr.includes('-W')) return { start: '', end: '', full: '', compact: '' };
+            const parts = isoWeekStr.split('-W');
+            const year = parseInt(parts[0], 10);
+            const week = parseInt(parts[1], 10);
+            if (isNaN(year) || isNaN(week)) return { start: '', end: '', full: '', compact: '' };
+
+            const jan4 = new Date(Date.UTC(year, 0, 4));
+            const dayOfWeek = jan4.getUTCDay() || 7;
+            const mondayWeek1 = new Date(jan4.getTime() - (dayOfWeek - 1) * 86400000);
+
+            const targetMonday = new Date(mondayWeek1.getTime() + (week - 1) * 7 * 86400000);
+            const targetSunday = new Date(targetMonday.getTime() + 6 * 86400000);
+
+            function fmtDate(d) {
+                const y = d.getUTCFullYear();
+                const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+                const day = String(d.getUTCDate()).padStart(2, '0');
+                return `${y}-${m}-${day}`;
+            }
+
+            function fmtCompact(d) {
+                const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+                const day = String(d.getUTCDate()).padStart(2, '0');
+                return `${m}/${day}`;
+            }
+
+            const sFull = fmtDate(targetMonday);
+            const eFull = fmtDate(targetSunday);
+            const sComp = fmtCompact(targetMonday);
+            const eComp = fmtCompact(targetSunday);
+
+            return {
+                start: sFull,
+                end: eFull,
+                full: `${sFull} ~ ${eFull}`,
+                compact: `${sComp} - ${eComp}`
+            };
+        }
+
+        function hasPlayableTrack(rel) {
+            if (!rel) return false;
+            const tracks = rel.tracks || [];
+            if (tracks.length > 0) {
+                return tracks.some(t => !!t.stream_url);
+            }
+            return !!rel.stream_url;
+        }
+
+        function getFirstPlayableTrackIndex(rel) {
+            if (!rel) return -1;
+            const tracks = rel.tracks || [];
+            if (tracks.length === 0) {
+                return rel.stream_url ? 0 : -1;
+            }
+            const idx = tracks.findIndex(t => !!t.stream_url);
+            return idx >= 0 ? idx : -1;
+        }
+
+        // DJ BPM 控制邏輯
+        function toggleBpmPanel() {
+            const panel = document.getElementById('bpm-panel');
+            if (panel) panel.classList.toggle('hidden');
+        }
+
+        function getBaseBpm() {
+            if (stagedBpm !== null && !isNaN(stagedBpm) && stagedBpm > 0) return stagedBpm;
+            if (activeRelease && activeRelease.bpm && !isNaN(parseFloat(activeRelease.bpm)) && parseFloat(activeRelease.bpm) > 0) {
+                return parseFloat(activeRelease.bpm);
+            }
+            return 120.0;
+        }
+
+        function hasBaseBpm() {
+            return (stagedBpm !== null && !isNaN(stagedBpm) && stagedBpm > 0) ||
+                   (activeRelease && activeRelease.bpm && !isNaN(parseFloat(activeRelease.bpm)) && parseFloat(activeRelease.bpm) > 0);
+        }
+
+        function changePitch(val) {
+            currentPitch = parseFloat(val);
+            if (audio) {
+                audio.playbackRate = currentPitch;
+                audio.preservesPitch = true;
+            }
+            updateBpmUI();
+            const base = getBaseBpm();
+            const effBpm = (base * currentPitch).toFixed(1);
+            const deltaBpm = (base * (currentPitch - 1.0)).toFixed(1);
+            const deltaStr = parseFloat(deltaBpm) >= 0 ? `+${deltaBpm}` : `${deltaBpm}`;
+            triggerHUD('⚡', `SPEED: ${effBpm} BPM (${deltaStr} BPM)`);
+        }
+
+        function nudgeBpmPitch(deltaBpm) {
+            const base = getBaseBpm();
+            const currentEffBpm = base * currentPitch;
+            const targetEffBpm = currentEffBpm + deltaBpm;
+            const nextPitch = Math.max(0.80, Math.min(1.20, Math.round((targetEffBpm / base) * 1000) / 1000));
+            const slider = document.getElementById('bpm-pitch-slider');
+            if (slider) slider.value = nextPitch;
+            changePitch(nextPitch);
+        }
+
+        function resetPitch() {
+            const slider = document.getElementById('bpm-pitch-slider');
+            if (slider) slider.value = 1.0;
+            changePitch(1.0);
+        }
+
+        function updateBpmUI() {
+            const pitchValEl = document.getElementById('bpm-pitch-val');
+            const effValEl = document.getElementById('bpm-effective-val');
+            const dockBpmTextEl = document.getElementById('dock-bpm-text');
+            const saveBtn = document.getElementById('btn-save-staged-bpm');
+            const sliderMinEl = document.getElementById('slider-label-min');
+            const sliderMaxEl = document.getElementById('slider-label-max');
+
+            const base = getBaseBpm();
+            const isBaseDefined = hasBaseBpm();
+            const effBpm = (base * currentPitch).toFixed(1);
+            const deltaBpm = (base * (currentPitch - 1.0)).toFixed(1);
+            const deltaStr = parseFloat(deltaBpm) >= 0 ? `+${deltaBpm}` : `${deltaBpm}`;
+
+            if (pitchValEl) {
+                const fallbackNote = !isBaseDefined ? ' (以 120 為基準)' : '';
+                pitchValEl.innerText = `${deltaStr} BPM (${currentPitch.toFixed(2)}x)${fallbackNote}`;
+            }
+
+            if (sliderMinEl) sliderMinEl.innerText = `-${(base * 0.20).toFixed(0)} BPM`;
+            if (sliderMaxEl) sliderMaxEl.innerText = `+${(base * 0.20).toFixed(0)} BPM`;
+
+            const isStagedUnsaved = stagedBpm !== null && (!activeRelease || activeRelease.bpm !== stagedBpm);
+
+            if (isBaseDefined) {
+                if (effValEl) effValEl.innerText = `${effBpm} BPM`;
+                if (dockBpmTextEl) {
+                    dockBpmTextEl.innerText = `${effBpm}${isStagedUnsaved ? '*' : ''} BPM (${currentPitch.toFixed(2)}x)`;
+                }
+            } else {
+                if (effValEl) effValEl.innerText = `-- BPM`;
+                if (dockBpmTextEl) dockBpmTextEl.innerText = `-- BPM (${currentPitch.toFixed(2)}x)`;
+            }
+
+            // 動態控制儲存按鈕顯示時機 (僅在數值有變動且未儲存時顯示)
+            if (saveBtn) {
+                saveBtn.classList.toggle('hidden', !isStagedUnsaved);
+            }
+
+            // 更新分析按鈕狀態與文案
+            if (!isAnalyzingBpm) {
+                resetBpmAnalyzeBtn();
+            }
+        }
+
+        // 智慧 RMS 能量峰值段落搜尋 (粗掃全曲，選取最密集 30 秒節奏區段)
+        function findRmsPeakOffset(buffer, windowSec = 30) {
+            if (buffer.duration <= windowSec) return 0;
+            const channelData = buffer.getChannelData(0);
+            const sampleRate = buffer.sampleRate;
+            const stepSec = 5;
+            const maxStart = buffer.duration - windowSec;
+            let bestOffset = buffer.duration > 20 ? 10 : 0;
+            let maxRms = -1;
+
+            const stride = 100;
+            const windowSamples = Math.floor(windowSec * sampleRate);
+
+            for (let offset = 0; offset <= maxStart; offset += stepSec) {
+                const startIdx = Math.floor(offset * sampleRate);
+                const endIdx = startIdx + windowSamples;
+                let sumSq = 0;
+                let count = 0;
+                for (let i = startIdx; i < endIdx; i += stride) {
+                    const val = channelData[i];
+                    sumSq += val * val;
+                    count++;
+                }
+                const rms = count > 0 ? Math.sqrt(sumSq / count) : 0;
+                if (rms > maxRms) {
+                    maxRms = rms;
+                    bestOffset = offset;
+                }
+            }
+            return bestOffset;
+        }
+
+        // Web Audio 自適應 BPM 分析引擎 (雙頻段離線濾波 + 200Hz 起音能量差分 + 諧波梳狀加權演算法)
+        async function analyzeAudioBpm(buffer) {
+            try {
+                // 1. RMS 能量峰值動態段落搜尋 (尋找鼓點最密集 30 秒，避開冷場前奏)
+                const startOffset = findRmsPeakOffset(buffer, 30);
+                const lengthSec = Math.min(30, Math.max(1, buffer.duration - startOffset));
+                const sampleRate = 22050; // 重採樣至 22.05 kHz 加速離線計算
+                const OfflineCtxClass = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+                const offlineCtx = new OfflineCtxClass(2, Math.floor(lengthSec * sampleRate), sampleRate);
+
+                const source = offlineCtx.createBufferSource();
+                source.buffer = buffer;
+
+                // 2. 雙頻段濾波分離 (Channel 0: 低頻 50~180Hz 大鼓/Bass；Channel 1: 中高頻 200~2500Hz 軍鼓/拍手)
+                const merger = offlineCtx.createChannelMerger(2);
+
+                const lowFilter = offlineCtx.createBiquadFilter();
+                lowFilter.type = 'lowpass';
+                lowFilter.frequency.value = 180;
+                lowFilter.Q.value = 1.0;
+
+                const midFilter = offlineCtx.createBiquadFilter();
+                midFilter.type = 'bandpass';
+                midFilter.frequency.value = 1000;
+                midFilter.Q.value = 1.0;
+
+                source.connect(lowFilter);
+                source.connect(midFilter);
+
+                lowFilter.connect(merger, 0, 0);
+                midFilter.connect(merger, 0, 1);
+                merger.connect(offlineCtx.destination);
+
+                source.start(0, startOffset, lengthSec);
+
+                const renderedBuffer = await offlineCtx.startRendering();
+                const dataLow = renderedBuffer.getChannelData(0);
+                const dataMid = renderedBuffer.getChannelData(1);
+
+                // 3. 提取瞬態能量包絡 (Hop size 5ms = 200 Hz 幀率，大幅降低高速量化誤差)
+                const hopSize = Math.floor(sampleRate / 200);
+                const numFrames = Math.floor(dataLow.length / hopSize);
+                if (numFrames < 400) return null;
+
+                const energyLow = new Float32Array(numFrames);
+                const energyMid = new Float32Array(numFrames);
+                for (let i = 0; i < numFrames; i++) {
+                    let sumLow = 0;
+                    let sumMid = 0;
+                    const start = i * hopSize;
+                    for (let j = 0; j < hopSize; j++) {
+                        const sampleLow = dataLow[start + j];
+                        const sampleMid = dataMid[start + j];
+                        sumLow += sampleLow * sampleLow;
+                        sumMid += sampleMid * sampleMid;
+                    }
+                    energyLow[i] = Math.sqrt(sumLow / hopSize);
+                    energyMid[i] = Math.sqrt(sumMid / hopSize);
+                }
+
+                // 4. 起音檢測 (Spectral Flux / 一階能量正向差分，結合雙頻段)
+                const onset = new Float32Array(numFrames);
+                for (let i = 1; i < numFrames; i++) {
+                    const diffLow = Math.max(0, energyLow[i] - energyLow[i - 1]);
+                    const diffMid = Math.max(0, energyMid[i] - energyMid[i - 1]);
+                    onset[i] = 0.6 * diffLow + 0.4 * diffMid;
+                }
+
+                // 5. 自相關分析 (Autocorrelation)：針對 70 ~ 200 BPM 區間及其八度諧波
+                // 200 Hz 幀率下：200 BPM = 60 frames/beat, 70 BPM = ~171 frames/beat
+                // 擴展計算邊界至 30 ~ 342 frames，確保全範圍 (70~200 BPM) 候選值皆能評估 halfLag (0.5x) 與 doubleLag (2x)
+                const corrMinLag = 30; // 400 BPM 八度上限
+                const corrMaxLag = 342; // 35 BPM 八度下限
+                const minLag = Math.floor(200 * 60 / 200); // 60
+                const maxLag = Math.floor(200 * 60 / 70);  // 171
+
+                const rawCorr = new Float32Array(corrMaxLag + 1);
+                for (let lag = corrMinLag; lag <= corrMaxLag; lag++) {
+                    let corr = 0;
+                    for (let i = 0; i < numFrames - lag; i++) {
+                        corr += onset[i] * onset[i + lag];
+                    }
+                    rawCorr[lag] = corr;
+                }
+
+                // 6. 諧波梳狀加權評分 (Harmonic Comb Scoring)：懲罰 3:4 / 4:3 / 2:3 切分假諧波，強化基頻與整數八度
+                let maxCombScore = -1;
+                let bestLag = 0;
+
+                for (let lag = minLag; lag <= maxLag; lag++) {
+                    let combScore = rawCorr[lag];
+
+                    // 整數八度加成 (倍數與半數諧波)
+                    const doubleLag = lag * 2;
+                    if (doubleLag <= corrMaxLag) combScore += 0.35 * rawCorr[doubleLag];
+                    const halfLag = Math.round(lag / 2);
+                    if (halfLag >= corrMinLag) combScore += 0.35 * rawCorr[halfLag];
+
+                    // 懲罰 3:4 / 4:3 切分假諧波 (如 133 vs 178 BPM 複節奏)
+                    const subLag34 = Math.round(lag * 0.75);
+                    if (subLag34 >= corrMinLag && rawCorr[subLag34] > 0.4 * rawCorr[lag]) {
+                        combScore *= 0.65;
+                    }
+                    const subLag43 = Math.round(lag * 4 / 3);
+                    if (subLag43 <= corrMaxLag && rawCorr[subLag43] > 0.4 * rawCorr[lag]) {
+                        combScore *= 0.65;
+                    }
+                    const subLag23 = Math.round(lag * 0.667);
+                    if (subLag23 >= corrMinLag && rawCorr[subLag23] > 0.4 * rawCorr[lag]) {
+                        combScore *= 0.7;
+                    }
+
+                    if (combScore > maxCombScore) {
+                        maxCombScore = combScore;
+                        bestLag = lag;
+                    }
+                }
+
+                if (bestLag === 0) return null;
+
+                let bpm = (60 * 200) / bestLag;
+                // 正規化至 70 ~ 200 BPM (涵蓋 Drum & Bass 174~180 與 Hardcore)
+                while (bpm < 70) bpm *= 2;
+                while (bpm > 200) bpm /= 2;
+
+                return Math.round(bpm);
+            } catch (err) {
+                console.error("Audio BPM analysis failed:", err);
+                return null;
+            }
+        }
+
+        // 自動觸發分析流程 (支援直接抓取 + 代理伺服器回退)
+        async function startBpmAnalysis() {
+            if (!activeRelease) {
+                triggerHUD('⚠️', '請先播放選定作品');
+                return;
+            }
+            if (isAnalyzingBpm) return;
+
+            const tracks = activeRelease.tracks || [];
+            const curTrack = (tracks.length > 0 && tracks[activeTrackIndex]) ? tracks[activeTrackIndex] : null;
+            const streamUrl = (curTrack && curTrack.stream_url) || activeRelease.stream_url;
+
+            if (!streamUrl) {
+                triggerHUD('⚠️', '目前曲目無可用串流可供分析');
+                return;
+            }
+
+            isAnalyzingBpm = true;
+            const btn = document.getElementById('btn-analyze-bpm');
+            const icon = document.getElementById('analyze-icon');
+            const text = document.getElementById('analyze-text');
+            if (btn) {
+                btn.disabled = true;
+                btn.classList.add('animate-pulse');
+            }
+            if (icon) icon.innerText = '⚡';
+            if (text) text.innerText = '分析中...';
+
+            let arrayBuffer = null;
+            // 1. 嘗試直接抓取 (若 CDN 支援 CORS)
+            try {
+                const resp = await fetch(streamUrl);
+                if (resp.ok) {
+                    arrayBuffer = await resp.arrayBuffer();
+                }
+            } catch (err) {
+                console.log("Direct stream fetch blocked by CORS, switching to proxy fallback...", err);
+            }
+
+            // 2. 自動回退至後端串流代理 (100% 繞過 CORS 限制)
+            if (!arrayBuffer) {
+                try {
+                    const proxyUrl = `/api/releases/${activeRelease.id}/stream-proxy?track_index=${activeTrackIndex}`;
+                    const resp = await fetch(proxyUrl);
+                    if (resp.ok) {
+                        arrayBuffer = await resp.arrayBuffer();
+                    } else {
+                        throw new Error(`Proxy status: ${resp.status}`);
+                    }
+                } catch (proxyErr) {
+                    console.error("Proxy fetch failed:", proxyErr);
+                    triggerHUD('⚠️', '音訊串流抓取失敗');
+                    resetBpmAnalyzeBtn();
+                    return;
+                }
+            }
+
+            // 3. 解碼音訊並計算 BPM
+            try {
+                const AudioCtxClass = window.AudioContext || window.webkitAudioContext;
+                const audioCtx = new AudioCtxClass();
+                const decodedBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+                const estimatedBpm = await analyzeAudioBpm(decodedBuffer);
+                try { await audioCtx.close(); } catch (e) {}
+
+                if (estimatedBpm && estimatedBpm >= 40 && estimatedBpm <= 300) {
+                    stagedBpm = estimatedBpm;
+                    const stagedContainer = document.getElementById('bpm-staged-container');
+                    if (stagedContainer) stagedContainer.classList.remove('hidden');
+                    const stagedValEl = document.getElementById('staged-bpm-val');
+                    if (stagedValEl) stagedValEl.innerText = stagedBpm;
+
+                    const statusTag = document.getElementById('bpm-status-tag');
+                    if (statusTag) {
+                        statusTag.innerText = '分析完成 (待儲存)';
+                        statusTag.className = 'text-[10px] text-amber-400 font-bold';
+                    }
+
+                    // 切換至檢視微調模式
+                    const dispMode = document.getElementById('bpm-display-mode');
+                    const editMode = document.getElementById('bpm-edit-mode');
+                    if (dispMode) dispMode.classList.remove('hidden');
+                    if (editMode) editMode.classList.add('hidden');
+
+                    updateBpmUI();
+                    triggerHUD('🔍', `BPM 分析完成: ${stagedBpm}`);
+                } else {
+                    triggerHUD('⚠️', '無法準確分析 BPM，請手動自訂');
+                }
+            } catch (decodeErr) {
+                console.error("Audio decode error:", decodeErr);
+                triggerHUD('⚠️', '音訊解碼失敗');
+            } finally {
+                resetBpmAnalyzeBtn();
+            }
+        }
+
+        function resetBpmAnalyzeBtn() {
+            isAnalyzingBpm = false;
+            const btn = document.getElementById('btn-analyze-bpm');
+            const icon = document.getElementById('analyze-icon');
+            const text = document.getElementById('analyze-text');
+            if (btn) {
+                btn.disabled = false;
+                btn.classList.remove('animate-pulse');
+                btn.title = "此 BPM 將作為此 Release 之基準節奏";
+            }
+            if (activeRelease && activeRelease.bpm) {
+                if (icon) icon.innerText = '🔄';
+                if (text) text.innerText = '重新分析目前播放曲目 BPM';
+            } else {
+                if (icon) icon.innerText = '🔍';
+                if (text) text.innerText = '分析目前播放曲目 BPM';
+            }
+        }
+
+        function clampBpm(val) {
+            return Math.max(40, Math.min(300, Math.round(val * 10) / 10));
+        }
+
+        function nudgeStagedBpm(delta) {
+            if (stagedBpm === null) {
+                stagedBpm = (activeRelease && activeRelease.bpm) ? parseFloat(activeRelease.bpm) : 120;
+            }
+            stagedBpm = clampBpm(stagedBpm + delta);
+            const stagedValEl = document.getElementById('staged-bpm-val');
+            if (stagedValEl) stagedValEl.innerText = stagedBpm;
+
+            const statusTag = document.getElementById('bpm-status-tag');
+            if (statusTag) {
+                statusTag.innerText = '已微調 (待儲存)';
+                statusTag.className = 'text-[10px] text-amber-400 font-bold';
+            }
+            updateBpmUI();
+        }
+
+        function toggleBpmEditMode() {
+            const dispMode = document.getElementById('bpm-display-mode');
+            const editMode = document.getElementById('bpm-edit-mode');
+            const customInput = document.getElementById('custom-bpm-input');
+            if (!dispMode || !editMode) return;
+
+            const isEditing = !editMode.classList.contains('hidden');
+            if (isEditing) {
+                editMode.classList.add('hidden');
+                dispMode.classList.remove('hidden');
+            } else {
+                editMode.classList.remove('hidden');
+                dispMode.classList.add('hidden');
+                if (customInput) {
+                    customInput.value = stagedBpm !== null ? stagedBpm : ((activeRelease && activeRelease.bpm) ? activeRelease.bpm : '');
+                }
+                const btnTap = document.getElementById('btn-tap-tempo');
+                if (btnTap) {
+                    document.getElementById('btn-tap-tempo').focus();
+                }
+            }
+        }
+
+        function nudgeCustomBpmInput(delta) {
+            const input = document.getElementById('custom-bpm-input');
+            if (!input) return;
+            let current = parseFloat(input.value);
+            if (isNaN(current)) {
+                current = stagedBpm !== null ? stagedBpm : ((activeRelease && activeRelease.bpm) ? parseFloat(activeRelease.bpm) : 120);
+            }
+            const nextVal = clampBpm(current + delta);
+            input.value = nextVal;
+        }
+
+        let tapTimestamps = [];
+        let tapResetTimer = null;
+
+        function handleTapTempo() {
+            const now = performance.now();
+            if (tapResetTimer) clearTimeout(tapResetTimer);
+
+            // 如果超過 2000ms 沒打拍，自動重置
+            if (tapTimestamps.length > 0 && now - tapTimestamps[tapTimestamps.length - 1] > 2000) {
+                tapTimestamps = [];
+            }
+
+            tapTimestamps.push(now);
+
+            // 最多保留最近 10 次打拍記錄
+            if (tapTimestamps.length > 10) {
+                tapTimestamps.shift();
+            }
+
+            const label = document.getElementById('tap-tempo-label');
+            if (label) {
+                label.innerText = `Tap (${tapTimestamps.length})`;
+            }
+
+            const btnTap = document.getElementById('btn-tap-tempo');
+            if (btnTap && document.activeElement !== btnTap) {
+                document.getElementById('btn-tap-tempo').focus();
+            }
+
+            if (tapTimestamps.length >= 2) {
+                let intervals = [];
+                for (let i = 1; i < tapTimestamps.length; i++) {
+                    intervals.push(tapTimestamps[i] - tapTimestamps[i - 1]);
+                }
+                const avgInterval = intervals.reduce((a, b) => a + b, 0) / intervals.length;
+                if (avgInterval > 0) {
+                    const rawBpm = 60000 / avgInterval;
+                    const calculatedBpm = clampBpm(rawBpm);
+                    const input = document.getElementById('custom-bpm-input');
+                    if (input) {
+                        input.value = calculatedBpm;
+                    }
+                    stagedBpm = calculatedBpm;
+                    const stagedValEl = document.getElementById('staged-bpm-val');
+                    if (stagedValEl) {
+                        document.getElementById('staged-bpm-val').innerText = stagedBpm;
+                    }
+                    const stagedContainer = document.getElementById('bpm-staged-container');
+                    if (stagedContainer) stagedContainer.classList.remove('hidden');
+
+                    const statusTag = document.getElementById('bpm-status-tag');
+                    if (statusTag) {
+                        statusTag.innerText = 'Tap 測速 (待儲存)';
+                        statusTag.className = 'text-[10px] text-amber-400 font-bold';
+                    }
+                    updateBpmUI();
+                }
+            }
+
+            // 設定 2000ms 逾時重置計數
+            tapResetTimer = setTimeout(() => {
+                tapTimestamps = [];
+                const l = document.getElementById('tap-tempo-label');
+                if (l) l.innerText = 'Tap (T)';
+            }, 2000);
+        }
+
+        // 自訂 BPM 輸入框防呆：若按 T/t 則切換至打拍測速
+        function setupCustomBpmInputDefense() {
+            const input = document.getElementById('custom-bpm-input');
+            if (!input) return;
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 't' || e.key === 'T') {
+                    e.preventDefault();
+                    input.blur();
+                    const btnTap = document.getElementById('btn-tap-tempo');
+                    if (btnTap) {
+                        document.getElementById('btn-tap-tempo').focus();
+                    }
+                    handleTapTempo();
+                }
+            });
+        }
+
+        function validateBpm(rawVal) {
+            const val = parseFloat(rawVal);
+            if (isNaN(val) || val < 40 || val > 300) {
+                alert("請輸入合理的 BPM 數值 (40 ~ 300)");
+                return null;
+            }
+            return val;
+        }
+
+        function applyCustomBpmInput() {
+            const customInput = document.getElementById('custom-bpm-input');
+            if (!customInput) return;
+            const val = validateBpm(customInput.value);
+            if (val === null) return;
+            stagedBpm = parseFloat(val.toFixed(1));
+            const stagedValEl = document.getElementById('staged-bpm-val');
+            if (stagedValEl) stagedValEl.innerText = stagedBpm;
+
+            const statusTag = document.getElementById('bpm-status-tag');
+            if (statusTag) {
+                statusTag.innerText = '自訂 (待儲存)';
+                statusTag.className = 'text-[10px] text-amber-400 font-bold';
+            }
+
+            toggleBpmEditMode();
+            updateBpmUI();
+            triggerHUD('✏️', `已套用暫存 BPM: ${stagedBpm}`);
+        }
+
+        async function commitStagedBpm() {
+            if (!activeRelease) {
+                triggerHUD('⚠️', '請先播放選定作品');
+                return;
+            }
+            if (stagedBpm === null) {
+                triggerHUD('⚠️', '尚未分析或設定 BPM');
+                return;
+            }
+
+            const val = validateBpm(stagedBpm);
+            if (val === null) return;
+
+            try {
+                const res = await fetch(`/api/releases/${activeRelease.id}/bpm`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ bpm: val })
+                });
+                if (res.ok) {
+                    activeRelease.bpm = val;
+                    stagedBpm = val;
+                    const r = findReleaseById(activeRelease.id);
+                    if (r) r.bpm = val;
+
+                    const statusTag = document.getElementById('bpm-status-tag');
+                    if (statusTag) {
+                        statusTag.innerText = '已儲存至庫';
+                        statusTag.className = 'text-[10px] text-emerald-400 font-semibold';
+                    }
+
+                    updateBpmUI();
+                    triggerHUD('✓', `BPM 已確認儲存: ${val}`);
+                    hubChannel.postMessage({ action: 'UPDATE_STATE' });
+                } else {
+                    alert("儲存失敗，請檢查網路連線");
+                }
+            } catch (err) {
+                console.error("Save BPM failed:", err);
+                alert("網路或伺服器錯誤");
+            }
+        }
+
+        // 音訊過期自動刷新重試
+        async function handleAudioError() {
+            if (!activeRelease || isRefreshingStream) return;
+            isRefreshingStream = true;
+            triggerHUD('🔄', '串流過期，正在更新...');
+            try {
+                const res = await fetch(`/api/releases/${activeRelease.id}/refresh-stream`, { method: 'POST' });
+                if (res.ok) {
+                    const fresh = await res.json();
+                    const rel = findReleaseById(activeRelease.id);
+                    if (rel) {
+                        rel.stream_url = fresh.stream_url;
+                        rel.tracks = fresh.tracks;
+                    }
+                    activeRelease.stream_url = fresh.stream_url;
+                    activeRelease.tracks = fresh.tracks;
+                    
+                    const curTrack = (activeRelease.tracks && activeRelease.tracks[activeTrackIndex]) || null;
+                    const freshUrl = (curTrack && curTrack.stream_url) || fresh.stream_url;
+                    if (freshUrl) {
+                        audio.src = freshUrl;
+                        audio.playbackRate = currentPitch;
+                        audio.preservesPitch = true;
+                        await audio.play();
+                        triggerHUD('✓', '音訊連結已自動更新');
+                        renderAccordion();
+                    } else {
+                        triggerHUD('⚠️', '此曲目無可用串流');
+                    }
+                } else {
+                    triggerHUD('⚠️', '音訊更新失敗，請檢查網路');
+                }
+            } catch (err) {
+                console.error("Auto refresh stream failed:", err);
+                triggerHUD('⚠️', '音訊載入失敗');
+            } finally {
+                isRefreshingStream = false;
+            }
+        }
+
+        // 核心音訊節點
+        const audio = document.getElementById('global-audio');
+
+        // 跨分頁協同頻道
+        const hubChannel = new BroadcastChannel('bandcamp_hub_sync');
+        hubChannel.onmessage = (event) => {
+            const msg = event.data;
+            if (msg.action === 'STOP_PLAYBACK' && msg.senderId !== tabChannelId) {
+                if (!audio.paused) audio.pause();
+                closePlayer();
+            } else if (msg.action === 'UPDATE_STATE') {
+                fetchReleases();
+            }
+        };
+
+        const SVG_FALLBACK = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='300' height='300' viewBox='0 0 300 300'><rect width='300' height='300' fill='%23121218'/><path d='M110 90v120l100-60z' fill='%23272736'/></svg>";
+
+        function handleImgError(img) {
+            img.onerror = null;
+            img.src = SVG_FALLBACK;
+        }
+
+        // 初始化
+        window.addEventListener('DOMContentLoaded', () => {
+            initSyncLimit();
+            initAudioEvents();
+            fetchReleases();
+            checkAuthStatus();
+            setupKeyboard();
+            setupSearch();
+            setupNetworkListeners();
+            setupProgressBar();
+            setupCustomBpmInputDefense();
+            
+            const savedVol = localStorage.getItem('bc_hub_volume');
+            if (savedVol !== null) {
+                audio.volume = parseFloat(savedVol);
+                document.getElementById('volume-slider').value = savedVol;
+            } else {
+                audio.volume = 0.8;
+            }
+        });
+
+        // 視窗關閉或重載時，自動背景提交尚未歸檔之已聽發行
+        window.addEventListener('beforeunload', () => {
+            if (pendingListenedReleaseId) {
+                const r = findReleaseById(pendingListenedReleaseId);
+                if (!r || !r.is_listened) {
+                    try {
+                        fetch(`/api/releases/${pendingListenedReleaseId}/listened`, { method: 'PATCH', keepalive: true });
+                    } catch (e) {}
+                }
+            }
+        });
+
+        // 音訊事件
+        function initAudioEvents() {
+            audio.preservesPitch = true;
+            audio.addEventListener('error', handleAudioError);
+
+            audio.addEventListener('play', () => {
+                document.getElementById('play-icon').innerText = '⏸';
+                document.getElementById('dock-vinyl-disc').classList.add('animate-vinyl-spin');
+                const tonearm = document.getElementById('dock-tonearm');
+                tonearm.classList.remove('tonearm-rest');
+                tonearm.classList.add('tonearm-active');
+
+                hubChannel.postMessage({ action: 'STOP_PLAYBACK', senderId: tabChannelId });
+                updateTrackHighlighting();
+            });
+
+            audio.addEventListener('pause', () => {
+                document.getElementById('play-icon').innerText = '▶';
+                document.getElementById('dock-vinyl-disc').classList.remove('animate-vinyl-spin');
+                const tonearm = document.getElementById('dock-tonearm');
+                tonearm.classList.remove('tonearm-active');
+                tonearm.classList.add('tonearm-rest');
+
+                updateTrackHighlighting();
+            });
+
+            audio.addEventListener('timeupdate', () => {
+                if (!isNaN(audio.duration) && audio.duration > 0) {
+                    const pct = (audio.currentTime / audio.duration) * 100;
+                    updateProgressUI(pct, audio.currentTime);
+                    document.getElementById('time-duration').innerText = formatTime(audio.duration);
+                }
+            });
+
+            audio.addEventListener('ended', () => {
+                if (isLoop) {
+                    audio.currentTime = 0;
+                    audio.play();
+                } else {
+                    playNextTrack();
+                }
+            });
+        }
+
+        function formatTime(seconds) {
+            if (isNaN(seconds) || seconds <= 0) return "0:00";
+            const m = Math.floor(seconds / 60);
+            const s = Math.floor(seconds % 60);
+            return `${m}:${s < 10 ? '0' : ''}${s}`;
+        }
+
+        // 進度條 UI 同步輔助函式
+        function updateProgressUI(pct, time) {
+            const fill = document.getElementById('progress-bar-fill');
+            if (fill) fill.style.width = `${pct}%`;
+            const thumb = document.getElementById('progress-bar-thumb');
+            if (thumb) thumb.style.left = `${pct}%`;
+            if (time !== undefined) {
+                document.getElementById('time-current').innerText = formatTime(time);
+            }
+        }
+
+        // 傳統線性進度條控制器
+        function setupProgressBar() {
+            const container = document.getElementById('progress-bar-container');
+            const tooltip = document.getElementById('progress-hover-tooltip');
+            const thumb = document.getElementById('progress-bar-thumb');
+            let isDragging = false;
+
+            function updateFromEvent(e) {
+                if (!audio.duration || isNaN(audio.duration) || audio.duration <= 0) return;
+                const rect = container.getBoundingClientRect();
+                const clickX = Math.max(0, Math.min(rect.width, e.clientX - rect.left));
+                const pct = clickX / rect.width;
+                audio.currentTime = pct * audio.duration;
+                updateProgressUI(pct * 100, audio.currentTime);
+            }
+
+            container.addEventListener('click', (e) => {
+                updateFromEvent(e);
+            });
+
+            container.addEventListener('mousedown', (e) => {
+                isDragging = true;
+                if (thumb) thumb.classList.add('opacity-100');
+                updateFromEvent(e);
+            });
+
+            window.addEventListener('mousemove', (e) => {
+                if (isDragging) {
+                    updateFromEvent(e);
+                }
+            });
+
+            window.addEventListener('mouseup', () => {
+                if (isDragging) {
+                    isDragging = false;
+                    if (thumb) thumb.classList.remove('opacity-100');
+                }
+            });
+
+            // 懸停時間預覽 Tooltip
+            container.addEventListener('mousemove', (e) => {
+                if (!audio.duration || isNaN(audio.duration) || audio.duration <= 0) return;
+                const rect = container.getBoundingClientRect();
+                const hoverX = Math.max(0, Math.min(rect.width, e.clientX - rect.left));
+                const pct = hoverX / rect.width;
+                const hoverTime = pct * audio.duration;
+
+                tooltip.innerText = formatTime(hoverTime);
+                tooltip.style.left = `${hoverX}px`;
+                tooltip.classList.remove('hidden');
+            });
+
+            container.addEventListener('mouseleave', () => {
+                tooltip.classList.add('hidden');
+            });
+        }
+
+        // 鍵盤 HUD 視覺反饋
+        function triggerHUD(icon, text) {
+            const hud = document.getElementById('keyboard-hud');
+            document.getElementById('hud-icon').innerText = icon;
+            document.getElementById('hud-text').innerText = text;
+
+            hud.classList.remove('hidden', 'animate-hud');
+            void hud.offsetWidth; // 強制重繪觸發動畫
+            hud.classList.add('animate-hud');
+
+            if (hudTimer) clearTimeout(hudTimer);
+            hudTimer = setTimeout(() => {
+                hud.classList.add('hidden');
+            }, 850);
+        }
+
+        function togglePlayPause() {
+            if (!activeRelease) return;
+            if (audio.paused) {
+                audio.play().catch(e => console.log("Play failed:", e));
+                triggerHUD('▶', 'PLAY');
+            } else {
+                audio.pause();
+                triggerHUD('⏸', 'PAUSE');
+            }
+        }
+
+        function seekRelative(seconds) {
+            if (!activeRelease || !audio.duration || isNaN(audio.duration) || audio.duration <= 0) return;
+            const target = Math.max(0, Math.min(audio.duration - 0.2, audio.currentTime + seconds));
+            audio.currentTime = target;
+            const pct = (audio.currentTime / audio.duration) * 100;
+            updateProgressUI(pct, audio.currentTime);
+            triggerHUD(seconds < 0 ? '⏪' : '⏩', `${seconds < 0 ? '' : '+'}${seconds}s`);
+        }
+
+        function jumpToFraction(frac) {
+            if (!activeRelease || !audio.duration || isNaN(audio.duration) || audio.duration <= 0) return;
+            const target = Math.max(0, Math.min(audio.duration - 0.2, audio.duration * frac));
+            audio.currentTime = target;
+            const pct = (audio.currentTime / audio.duration) * 100;
+            updateProgressUI(pct, audio.currentTime);
+            const pctRound = (frac === 1/3 || Math.abs(frac - 1/3) < 0.01) ? 33 : ((frac === 2/3 || Math.abs(frac - 2/3) < 0.01) ? 66 : Math.round(frac * 100));
+            triggerHUD('⏱', `JUMP ${pctRound}%`);
+        }
+
+        function toggleShuffle() {
+            isShuffle = !isShuffle;
+            document.getElementById('btn-shuffle').classList.toggle('text-bc-400', isShuffle);
+            document.getElementById('btn-shuffle').classList.toggle('text-zinc-500', !isShuffle);
+            triggerHUD('🔀', isShuffle ? 'SHUFFLE: ON' : 'SHUFFLE: OFF');
+        }
+
+        function toggleLoop() {
+            isLoop = !isLoop;
+            document.getElementById('btn-loop').classList.toggle('text-bc-400', isLoop);
+            document.getElementById('btn-loop').classList.toggle('text-zinc-500', !isLoop);
+            triggerHUD('🔁', isLoop ? 'LOOP: ON' : 'LOOP: OFF');
+        }
+
+        function playPrevTrack() {
+            if (!activeRelease) return;
+            const tracks = activeRelease.tracks || [];
+            // 1. 先在當前發行內向前尋找有串流的曲目
+            if (tracks.length > 1 && activeTrackIndex > 0) {
+                for (let i = activeTrackIndex - 1; i >= 0; i--) {
+                    if (tracks[i].stream_url) {
+                        activeTrackIndex = i;
+                        playTrack(activeRelease, activeTrackIndex);
+                        triggerHUD('⏮', `TRACK: ${activeTrackIndex + 1}`);
+                        return;
+                    }
+                }
+            }
+            // 2. 跨發行向前尋找有可播放串流的發行
+            if (flatCards.length === 0) return;
+            let prevIdx = selectedIndex;
+            let attempts = 0;
+            let found = false;
+
+            while (attempts < flatCards.length) {
+                if (isShuffle) {
+                    prevIdx = Math.floor(Math.random() * flatCards.length);
+                } else {
+                    prevIdx = prevIdx > 0 ? prevIdx - 1 : flatCards.length - 1;
+                }
+                attempts++;
+                if (hasPlayableTrack(flatCards[prevIdx].data)) {
+                    found = true;
+                    break;
+                }
+            }
+
+            if (found) {
+                selectedIndex = prevIdx;
+                updateCardSelection();
+                const targetRel = flatCards[selectedIndex].data;
+                const targetTrackIdx = getFirstPlayableTrackIndex(targetRel);
+                playRelease(targetRel, targetTrackIdx);
+                triggerHUD('⏮', `PREV: ${targetRel.title}`);
+            } else {
+                triggerHUD('⚠️', '無其他可播放之作品');
+            }
+        }
+
+        function playNextTrack() {
+            if (!activeRelease) return;
+            const tracks = activeRelease.tracks || [];
+            // 1. 先在當前發行內向後尋找有串流的曲目
+            if (tracks.length > 1) {
+                for (let i = activeTrackIndex + 1; i < tracks.length; i++) {
+                    if (tracks[i].stream_url) {
+                        activeTrackIndex = i;
+                        playTrack(activeRelease, activeTrackIndex);
+                        triggerHUD('⏭', `TRACK: ${activeTrackIndex + 1}`);
+                        return;
+                    }
+                }
+            }
+            // 2. 跨發行向後尋找有可播放串流的發行
+            if (flatCards.length === 0) return;
+            let nextIdx = selectedIndex;
+            let attempts = 0;
+            let found = false;
+
+            while (attempts < flatCards.length) {
+                if (isShuffle) {
+                    nextIdx = Math.floor(Math.random() * flatCards.length);
+                } else {
+                    nextIdx = nextIdx < flatCards.length - 1 ? nextIdx + 1 : 0;
+                }
+                attempts++;
+                if (hasPlayableTrack(flatCards[nextIdx].data)) {
+                    found = true;
+                    break;
+                }
+            }
+
+            if (found) {
+                selectedIndex = nextIdx;
+                updateCardSelection();
+                const targetRel = flatCards[selectedIndex].data;
+                const targetTrackIdx = getFirstPlayableTrackIndex(targetRel);
+                playRelease(targetRel, targetTrackIdx);
+                triggerHUD('⏭', `NEXT: ${targetRel.title}`);
+            } else {
+                triggerHUD('⚠️', '無其他可播放之作品');
+            }
+        }
+
+        function changeVolume(val) {
+            audio.volume = parseFloat(val);
+            localStorage.setItem('bc_hub_volume', val);
+            isMuted = audio.volume === 0;
+            document.getElementById('btn-mute').innerText = isMuted ? '🔇' : '🔊';
+        }
+
+        function toggleMute() {
+            const slider = document.getElementById('volume-slider');
+            if (isMuted) {
+                audio.volume = previousVolume || 0.8;
+                slider.value = audio.volume;
+                document.getElementById('btn-mute').innerText = '🔊';
+                isMuted = false;
+                triggerHUD('🔊', `VOL: ${Math.round(audio.volume * 100)}%`);
+            } else {
+                previousVolume = audio.volume;
+                audio.volume = 0;
+                slider.value = 0;
+                document.getElementById('btn-mute').innerText = '🔇';
+                isMuted = true;
+                triggerHUD('🔇', 'MUTED');
+            }
+        }
+
+        function setupNetworkListeners() {
+            const badge = document.getElementById('offline-badge');
+            const syncBtn = document.getElementById('sync-btn');
+            function update() {
+                if (navigator.onLine) {
+                    badge.classList.add('hidden');
+                    syncBtn.disabled = false;
+                    syncBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                } else {
+                    badge.classList.remove('hidden');
+                    syncBtn.disabled = true;
+                    syncBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                }
+            }
+            window.addEventListener('online', update);
+            window.addEventListener('offline', update);
+            update();
+        }
+
+        // 資料抓取與渲染
+        async function fetchReleases() {
+            try {
+                const res = await fetch(`/api/releases?filter=${currentFilter}&q=${encodeURIComponent(currentQuery)}&limit_weeks=${limitWeeks}&_t=${Date.now()}`, {
+                    cache: 'no-store'
+                });
+                const data = await res.json();
+                releasesData = data.weeks || [];
+                totalWeeksCount = data.total_weeks || 0;
+                renderAccordion();
+                renderSidebarTimeline();
+                updateLoadMoreButton();
+            } catch (err) {
+                console.error("fetchReleases error:", err);
+            }
+        }
+
+        function updateLoadMoreButton() {
+            const container = document.getElementById('load-more-container');
+            if (!currentQuery.trim() && currentFilter !== 'starred' && totalWeeksCount > releasesData.length) {
+                container.classList.remove('hidden');
+            } else {
+                container.classList.add('hidden');
+            }
+        }
+
+        function loadMoreWeeks() {
+            limitWeeks += 12;
+            fetchReleases();
+        }
+
+        // 渲染左側時間軸與進度統計
+        function renderSidebarTimeline() {
+            const timeline = document.getElementById('timeline-weeks');
+            let totalUnlistened = 0;
+            let totalReleases = 0;
+
+            if (releasesData.length === 0) {
+                timeline.innerHTML = `<div class="text-sm text-zinc-500 font-mono py-2 text-center">無資料</div>`;
+                document.getElementById('stats-pct').innerText = '0%';
+                document.getElementById('stats-bar').style.width = '0%';
+                document.getElementById('stats-unlistened').innerText = '0';
+                document.getElementById('stats-total').innerText = '0';
+                return;
+            }
+
+            timeline.innerHTML = '';
+            releasesData.forEach(w => {
+                const unlistenedCount = w.releases.filter(r => !r.is_listened).length;
+                const weekTotal = w.releases.length;
+                totalUnlistened += unlistenedCount;
+                totalReleases += weekTotal;
+                const range = getIsoWeekRange(w.week);
+
+                const row = document.createElement('a');
+                row.href = `#week-${w.week}`;
+                row.className = "flex items-center justify-between px-2.5 py-1.5 rounded-xl hover:bg-studio-800 text-xs font-mono transition group text-zinc-300 hover:text-white";
+                row.innerHTML = `
+                    <div class="truncate mr-1">
+                        <span class="group-hover:text-bc-400 transition font-bold">${w.week}</span>
+                        <span class="text-[10px] text-zinc-500 font-normal ml-1">(${range.compact})</span>
+                    </div>
+                    <span class="text-[10px] px-1.5 py-0.2 rounded-md flex-shrink-0 ${unlistenedCount > 0 ? 'bg-bc-500/20 text-bc-400 border border-bc-500/40' : 'bg-studio-800 text-zinc-500'}">
+                        ${unlistenedCount}/${weekTotal}
+                    </span>
+                `;
+                timeline.appendChild(row);
+            });
+
+            // 更新整體統計
+            const listened = totalReleases - totalUnlistened;
+            const pct = totalReleases > 0 ? Math.round((listened / totalReleases) * 100) : 0;
+            document.getElementById('stats-pct').innerText = `${pct}%`;
+            document.getElementById('stats-bar').style.width = `${pct}%`;
+            document.getElementById('stats-unlistened').innerText = totalUnlistened;
+            document.getElementById('stats-total').innerText = totalReleases;
+        }
+
+        // 渲染主畫面黑膠卡片流
+        function renderAccordion() {
+            const main = document.getElementById('main-content');
+            if (releasesData.length === 0) {
+                main.innerHTML = `
+                    <div class="text-center py-28 space-y-3 glass-panel rounded-3xl border border-studio-border">
+                        <span class="text-3xl">⚡</span>
+                        <div class="text-sm font-mono text-zinc-300">尚無符合的發行資料</div>
+                        <div class="text-xs text-zinc-500">點擊右上角「立即同步」檢索最新發行通知信件。</div>
+                    </div>
+                `;
+                flatCards = [];
+                selectedIndex = -1;
+                return;
+            }
+
+            main.innerHTML = '';
+            flatCards = [];
+
+            releasesData.forEach((group) => {
+                const sec = document.createElement('section');
+                sec.id = `week-${group.week}`;
+                sec.className = "space-y-4 scroll-mt-24";
+
+                // 週別標題列
+                const header = document.createElement('div');
+                header.className = "px-5 py-3 rounded-2xl bg-studio-900/90 border border-studio-border glass-panel flex justify-between items-center shadow-lg";
+                
+                const unlistenedInWeek = group.releases.filter(r => !r.is_listened).length;
+                const weekRange = getIsoWeekRange(group.week);
+                header.innerHTML = `
+                    <div class="flex items-center space-x-3">
+                        <h2 class="text-base font-bold text-zinc-100 font-mono tracking-wider flex items-center gap-2">
+                            <span>📅</span> ${group.week} <span class="text-xs text-zinc-400 font-normal">(${weekRange.full})</span>
+                        </h2>
+                        <span class="text-xs px-2.5 py-0.5 rounded-full bg-studio-800 border border-studio-border text-zinc-400 font-mono">
+                            ${group.releases.length} 部發行
+                        </span>
+                        ${unlistenedInWeek > 0 ? `<span class="text-xs px-2.5 py-0.5 rounded-full bg-bc-500/20 border border-bc-500/40 text-bc-400 font-mono">${unlistenedInWeek} 部未聽</span>` : '<span class="text-xs text-zinc-500 font-mono">✓ 已全聽完</span>'}
+                    </div>
+                    <button onclick="markWeekAllListened('${group.week}')" class="p-1.5 rounded-full border transition ${unlistenedInWeek === 0 ? 'bg-studio-800/80 text-bc-400 border-bc-500/30' : 'bg-studio-900 text-zinc-500 hover:text-bc-400 border-studio-border hover:border-bc-500/40'}" title="將本週全部標記為已聽">
+                        ${unlistenedInWeek === 0 ? ICON_CHECKED : ICON_UNCHECKED}
+                    </button>
+                `;
+                
+                // 卡片網格
+                const grid = document.createElement('div');
+                grid.className = "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-4 gap-6";
+
+                group.releases.forEach(rel => {
+                    const card = document.createElement('div');
+                    card.dataset.id = rel.id;
+                    const isSelected = selectedIndex >= 0 && flatCards[selectedIndex] && flatCards[selectedIndex].data.id === rel.id;
+                    const isListenedOrPending = Boolean(rel.is_listened || (pendingListenedReleaseId === rel.id));
+                    card.className = `release-card group relative bg-studio-900/80 border rounded-2xl p-4 transition-all duration-300 cursor-pointer flex flex-col glass-panel shadow-xl ${isListenedOrPending ? 'opacity-55 border-studio-border' : 'border-studio-border hover:border-bc-500/60 hover:shadow-studio-glow'}`;
+                    
+                    const tracks = rel.tracks || [];
+                    const trackCount = tracks.length || 1;
+
+                    // 多曲目列表
+                    let tracksHtml = '';
+                    if (tracks.length > 0) {
+                        tracksHtml = `
+                            <div class="mt-3 pt-2.5 border-t border-studio-border/70 space-y-1 max-h-36 overflow-y-auto custom-scrollbar pr-0.5" onclick="event.stopPropagation()">
+                                <div class="flex items-center justify-between text-[11px] text-zinc-400 font-mono mb-1 px-1">
+                                    <span>曲目 (${trackCount} 首)</span>
+                                </div>
+                                ${tracks.map((t, tIdx) => {
+                                    const isCurrentPlaying = activeRelease && activeRelease.id === rel.id && activeTrackIndex === tIdx;
+                                    const isPlayable = Boolean(t.stream_url);
+                                    const isPlayed = isTrackPlayed(rel.id, tIdx);
+
+                                    if (!isPlayable) {
+                                        return `
+                                            <div onclick="event.stopPropagation(); triggerHUD('⚠️', '此曲目未開放試聽，可前往原站收聽')" 
+                                                 class="track-item flex items-center justify-between py-1 px-2 rounded-lg text-xs transition cursor-not-allowed text-zinc-600 select-none">
+                                                <div class="flex items-center space-x-1.5 min-w-0 truncate">
+                                                    <span class="text-[11px] text-zinc-600 font-mono w-4">${t.track_num || tIdx + 1}.</span>
+                                                    <span class="truncate" title="${t.title}">${t.title}</span>
+                                                </div>
+                                                <div class="flex items-center space-x-1.5 text-[11px] text-zinc-600 font-mono flex-shrink-0 ml-1">
+                                                    <span>無試聽 🔒</span>
+                                                </div>
+                                            </div>
+                                        `;
+                                    }
+
+                                    let trackClass = 'hover:bg-studio-800 text-zinc-300';
+                                    if (isCurrentPlaying) {
+                                        trackClass = 'bg-bc-500/20 text-bc-400 font-bold border border-bc-500/40 shadow-sm';
+                                    } else if (isPlayed) {
+                                        trackClass = 'text-zinc-500 opacity-60 hover:text-zinc-300 hover:opacity-100';
+                                    }
+
+                                    return `
+                                        <div onclick="event.stopPropagation(); playTrackDirect(${rel.id}, ${tIdx})" 
+                                             class="track-item flex items-center justify-between py-1 px-2 rounded-lg text-xs transition cursor-pointer ${trackClass}">
+                                            <div class="flex items-center space-x-1.5 min-w-0 truncate">
+                                                <span class="text-[11px] text-zinc-500 font-mono w-4">${t.track_num || tIdx + 1}.</span>
+                                                <span class="truncate" title="${t.title}">${t.title}</span>
+                                            </div>
+                                            <div class="flex items-center space-x-1.5 text-[11px] text-zinc-500 font-mono flex-shrink-0 ml-1">
+                                                <span>${formatTime(t.duration)}</span>
+                                                <span class="track-play-icon w-3 text-center text-[10px] ${isCurrentPlaying ? 'text-bc-400 font-bold' : 'text-zinc-500'}">${isCurrentPlaying && !audio.paused ? '⏸' : '▶'}</span>
+                                            </div>
+                                        </div>
+                                    `;
+                                }).join('')}
+                            </div>
+                        `;
+                    }
+
+                    // 雙層黑膠封套結構 (封面點擊在新分頁開 Bandcamp；卡片點擊播放發行)
+                    card.innerHTML = `
+                        <!-- 雙層黑膠封套 -->
+                        <div class="relative aspect-square w-full mb-3 group/jacket select-none">
+                            
+                            <!-- 底層抽出黑膠唱片 (Hover 時滑出 25% 並旋轉) -->
+                            <div class="absolute inset-0 rounded-full vinyl-grooves border border-zinc-800 shadow-2xl transform translate-x-2 group-hover/jacket:translate-x-10 group-hover/jacket:rotate-90 transition-all duration-500 flex items-center justify-center pointer-events-none z-0">
+                                <div class="w-12 h-12 rounded-full border border-zinc-900 bg-studio-950 overflow-hidden flex items-center justify-center">
+                                    <img src="${rel.cover_image_url || SVG_FALLBACK}" class="w-6 h-6 rounded-full object-cover" onerror="handleImgError(this)">
+                                </div>
+                            </div>
+
+                            <!-- 上層黑膠封面外套 (點擊在新分頁開啟 Bandcamp) -->
+                            <a href="${rel.url}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" class="relative z-10 w-full h-full block rounded-xl overflow-hidden bg-studio-950 border border-studio-border shadow-lg group/cover" title="在 Bandcamp 開啟">
+                                <img src="${rel.cover_image_url || SVG_FALLBACK}" loading="lazy" class="w-full h-full object-cover group-hover/cover:scale-105 transition duration-500" onerror="handleImgError(this)">
+                                
+                                <!-- 收藏星標 -->
+                                ${rel.is_starred ? '<span class="absolute top-2 right-2 text-xs bg-amber-500/95 text-studio-950 px-2 py-0.5 rounded-full font-black shadow-amber-glow z-20">⭐ 收藏</span>' : ''}
+                                
+                                <!-- 封面懸浮按鈕：前往 Bandcamp 原站 (官方 Bandcamp Logo) -->
+                                <div class="absolute inset-0 bg-black/45 opacity-0 group-hover/cover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white z-10 gap-1.5">
+                                    <div class="w-12 h-12 rounded-full bg-bc-500/90 text-studio-950 flex items-center justify-center shadow-studio-glow transform scale-90 group-hover/cover:scale-100 transition">
+                                        ${BC_LOGO_SVG}
+                                    </div>
+                                    <span class="text-[11px] font-mono bg-studio-950/80 px-2 py-0.5 rounded-md text-zinc-200">前往 Bandcamp ↗</span>
+                                </div>
+                            </a>
+                        </div>
+                        
+                        <!-- 標題與藝人 (點擊觸發播放) -->
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="text-sm font-bold text-zinc-100 hover:text-bc-400 truncate block transition flex-1 cursor-pointer" title="${rel.title}">
+                                ${rel.title}
+                            </span>
+                            <span class="text-[11px] px-1.5 py-0.2 rounded-md bg-studio-800 text-bc-400 border border-studio-border ml-2 flex-shrink-0 font-mono">${trackCount} 首</span>
+                        </div>
+                        <span class="text-xs text-zinc-400 hover:text-zinc-200 truncate mb-1 block transition font-sans cursor-pointer" title="藝人: ${rel.artist}">
+                            ${rel.artist}
+                        </span>
+                        
+                        <!-- 內嵌多軌清單 -->
+                        ${tracksHtml}
+                        
+                        <!-- 底部功能列 -->
+                        <div class="mt-auto flex justify-between items-center pt-3 border-t border-studio-border/80 text-xs font-mono">
+                            <button onclick="event.stopPropagation(); toggleListen(${rel.id})" class="p-1.5 rounded-lg border transition ${isListenedOrPending ? 'bg-studio-800/80 text-bc-400 border-bc-500/30' : 'bg-studio-900 text-zinc-500 hover:text-zinc-300 border-studio-border hover:border-zinc-600'}" title="${isListenedOrPending ? '已聽 (點擊標記未聽)' : '標記已聽 (L)'}">
+                                ${isListenedOrPending ? ICON_CHECKED : ICON_UNCHECKED}
+                            </button>
+                            <div class="flex items-center gap-2">
+                                <button onclick="event.stopPropagation(); toggleStar(${rel.id})" class="p-1.5 text-zinc-400 hover:text-amber-400 text-sm transition" title="切換收藏 (S)">
+                                    ${rel.is_starred ? '⭐' : '☆'}
+                                </button>
+                                <a href="${rel.url}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" class="p-1.5 text-zinc-500 hover:text-bc-400 transition" title="在 Bandcamp 開啟 (O)">
+                                    ${BC_LOGO_SVG}
+                                </a>
+                            </div>
+                        </div>
+                    `;
+
+                    card.addEventListener('click', () => {
+                        selectedIndex = flatCards.findIndex(c => c.data.id === rel.id);
+                        updateCardSelection();
+                        playRelease(rel);
+                    });
+
+                    grid.appendChild(card);
+                    flatCards.push({ element: card, data: rel });
+                });
+
+                sec.appendChild(header);
+                sec.appendChild(grid);
+                main.appendChild(sec);
+            });
+
+            if (selectedIndex >= 0 && selectedIndex < flatCards.length) {
+                updateCardSelection();
+            }
+        }
+
+        // 一鍵標記本週全聽完
+        async function markWeekAllListened(weekStr) {
+            await fetch('/api/releases/bulk-listened', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ iso_week: weekStr })
+            });
+            triggerHUD('✓', `WEEK ${weekStr}: LISTENED`);
+            hubChannel.postMessage({ action: 'UPDATE_STATE' });
+            fetchReleases();
+        }
+
+        // 捲動畫面至目前播放發行之卡片 (支援點擊播放器標題快速跳轉)
+        function jumpToActiveReleaseCard() {
+            if (!activeRelease) return;
+            const idx = flatCards.findIndex(c => c.data.id === activeRelease.id);
+            if (idx !== -1) {
+                selectedIndex = idx;
+                updateCardSelection();
+                flatCards[idx].element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }
+
+        // 延遲提交已聽狀態 (避免播放中清單重繪造成選取卡片消失與跑位)
+        async function commitPendingListened(relId = null) {
+            const targetId = relId || pendingListenedReleaseId;
+            if (!targetId) return;
+            pendingListenedReleaseId = null;
+            const r = findReleaseById(targetId);
+            if (r && r.is_listened) {
+                return;
+            }
+            try {
+                await fetch(`/api/releases/${targetId}/listened`, { method: 'PATCH' });
+                hubChannel.postMessage({ action: 'UPDATE_STATE' });
+                if (r) r.is_listened = 1;
+                fetchReleases();
+            } catch (err) {
+                console.error("commitPendingListened error:", err);
+            }
+        }
+
+        // 播放特定曲目
+        function playTrackDirect(relId, trackIdx) {
+            const rel = findReleaseById(relId);
+            if (rel) {
+                selectedIndex = flatCards.findIndex(c => c.data.id === rel.id);
+                updateCardSelection();
+                playRelease(rel, trackIdx);
+            }
+        }
+
+        function playRelease(rel, trackIdx = null) {
+            if (trackIdx === null || trackIdx === undefined) {
+                trackIdx = getFirstPlayableTrackIndex(rel);
+            }
+            if (trackIdx === -1) {
+                triggerHUD('⚠️', '此發行未開放試聽，可點封面前往原站');
+                return;
+            }
+            // 跨發行切換時，若前一張發行已達聆聽門檻，執行延遲提交
+            if (activeRelease && activeRelease.id !== rel.id) {
+                if (pendingListenedReleaseId === activeRelease.id) {
+                    commitPendingListened(activeRelease.id);
+                } else if (currentFilter === 'unlistened' && activeRelease.is_listened) {
+                    fetchReleases();
+                }
+            }
+            activeRelease = rel;
+            activeTrackIndex = trackIdx;
+            playTrack(rel, trackIdx);
+        }
+
+        function playTrack(rel, trackIdx = 0) {
+            const tracks = rel.tracks || [];
+            const track = (tracks.length > 0 && tracks[trackIdx]) 
+                ? tracks[trackIdx] 
+                : { title: rel.title, stream_url: rel.stream_url, duration: 0 };
+            
+            // 拔除回退至 rel.stream_url 的錯誤邏輯，徹底根治點不同 0:00 曲目卻播同一首之 Bug
+            const streamUrl = track.stream_url;
+
+            if (!streamUrl) {
+                triggerHUD('⚠️', '此曲目未開放試聽，可前往原站收聽');
+                return;
+            }
+
+            activeRelease = rel;
+            activeTrackIndex = trackIdx;
+
+            // 標記本曲為已播放
+            markTrackPlayed(rel.id, trackIdx);
+
+            const dock = document.getElementById('player-dock');
+            document.getElementById('dock-cover').src = rel.cover_image_url || SVG_FALLBACK;
+            document.getElementById('dock-cover-link').href = rel.url;
+            const vinylLink = document.getElementById('dock-vinyl-link');
+            if (vinylLink) vinylLink.href = rel.url;
+            
+            const titleLink = document.getElementById('dock-title-link');
+            titleLink.innerText = tracks.length > 1 ? `${track.title} (${rel.title})` : rel.title;
+            
+            const trackBadge = document.getElementById('dock-track-badge');
+            if (tracks.length > 1) {
+                trackBadge.classList.remove('hidden');
+                trackBadge.innerText = `${trackIdx + 1}/${tracks.length}`;
+            } else {
+                trackBadge.classList.add('hidden');
+            }
+
+            document.getElementById('dock-artist-link').innerText = rel.artist;
+            document.getElementById('dock-artist-link').href = rel.url;
+            
+            const starBtn = document.getElementById('dock-btn-star');
+            starBtn.innerText = rel.is_starred ? '⭐' : '☆';
+            starBtn.className = rel.is_starred ? "text-amber-400 text-base transition p-1 shadow-amber-glow" : "text-zinc-500 hover:text-amber-400 text-base transition p-1";
+            starBtn.onclick = () => toggleStar(rel.id);
+
+            const listenBtn = document.getElementById('dock-btn-listen');
+            listenBtn.innerHTML = rel.is_listened ? DOCK_ICON_CHECKED : DOCK_ICON_UNCHECKED;
+            listenBtn.title = rel.is_listened ? '已聽 (點擊標記未聽)' : '標記已聽 (L)';
+            listenBtn.onclick = () => toggleListen(rel.id);
+
+            // 初始化 DJ BPM 狀態 (同步目前作品之基準節奏或待分析狀態)
+            const stagedContainer = document.getElementById('bpm-staged-container');
+            const statusTag = document.getElementById('bpm-status-tag');
+            const stagedValEl = document.getElementById('staged-bpm-val');
+            const dispMode = document.getElementById('bpm-display-mode');
+            const editMode = document.getElementById('bpm-edit-mode');
+            if (dispMode) dispMode.classList.remove('hidden');
+            if (editMode) editMode.classList.add('hidden');
+
+            if (rel.bpm && !isNaN(parseFloat(rel.bpm)) && parseFloat(rel.bpm) > 0) {
+                stagedBpm = parseFloat(rel.bpm);
+                if (stagedContainer) stagedContainer.classList.remove('hidden');
+                if (stagedValEl) stagedValEl.innerText = stagedBpm;
+                if (statusTag) {
+                    statusTag.innerText = '已儲存';
+                    statusTag.className = 'text-[10px] text-bc-400 font-semibold';
+                }
+            } else {
+                stagedBpm = null;
+                if (stagedContainer) stagedContainer.classList.add('hidden');
+                if (statusTag) {
+                    statusTag.innerText = '未設定';
+                    statusTag.className = 'text-[10px] text-zinc-500';
+                }
+            }
+
+            // 更新 DJ BPM 顯示與輸入框
+            updateBpmUI();
+
+            // 更新多軌清單抽屜
+            renderMultiTrackDrawer(rel, trackIdx);
+
+            // 更新高亮與已播放樣式
+            updateTrackHighlighting();
+
+            audio.src = streamUrl;
+            audio.playbackRate = currentPitch;
+            audio.preservesPitch = true;
+            audio.play().catch(e => {
+                console.log("Playback error, triggering auto-refresh:", e);
+                handleAudioError(e);
+            });
+
+            dock.classList.remove('translate-y-full', 'translate-y-36');
+            dock.classList.add('translate-y-0');
+
+            if (activeTimer) clearTimeout(activeTimer);
+            activeTimer = setTimeout(() => {
+                const currentRel = findReleaseById(rel.id);
+                if (!document.hidden && activeRelease && activeRelease.id === rel.id && currentRel && !currentRel.is_listened) {
+                    pendingListenedReleaseId = rel.id;
+                    triggerHUD('✓', 'LISTENED (切換時歸檔)');
+                    const listenBtn = document.getElementById('dock-btn-listen');
+                    if (listenBtn) {
+                        listenBtn.innerHTML = DOCK_ICON_CHECKED;
+                        listenBtn.title = '已聽 (切換時歸檔)';
+                    }
+                    const card = document.querySelector(`.release-card[data-id="${rel.id}"]`);
+                    if (card) {
+                        card.classList.add('opacity-55');
+                        const cardBtn = card.querySelector('button[title*="聽"]');
+                        if (cardBtn) {
+                            cardBtn.innerHTML = ICON_CHECKED;
+                            cardBtn.title = '已聽 (切換時歸檔)';
+                            cardBtn.className = 'p-1.5 rounded-lg border transition bg-studio-800/80 text-bc-400 border-bc-500/30';
+                        }
+                    }
+                }
+            }, 30000);
+        }
+
+        // 多軌清單抽屜
+        function toggleMultiTrackDrawer() {
+            const drawer = document.getElementById('multi-track-drawer');
+            drawer.classList.toggle('hidden');
+        }
+
+        function renderMultiTrackDrawer(rel, activeIdx) {
+            const drawerTitle = document.getElementById('drawer-release-title');
+            const drawerList = document.getElementById('drawer-track-list');
+            drawerTitle.innerText = `${rel.artist} - ${rel.title}`;
+            
+            const tracks = rel.tracks || [];
+            if (tracks.length === 0) {
+                drawerList.innerHTML = `<div class="text-xs text-zinc-500 font-mono py-1">單曲發行</div>`;
+                return;
+            }
+
+            drawerList.innerHTML = tracks.map((t, idx) => {
+                const isPlayable = Boolean(t.stream_url);
+                const isPlayed = isTrackPlayed(rel.id, idx);
+                const isCurrent = idx === activeIdx;
+
+                if (!isPlayable) {
+                    return `
+                        <div onclick="triggerHUD('⚠️', '此曲目未開放試聽，可前往原站收聽')" 
+                             class="flex items-center justify-between px-2.5 py-1.5 rounded-xl text-xs font-mono transition cursor-not-allowed text-zinc-600 select-none">
+                            <span class="truncate">${t.track_num || idx + 1}. ${t.title}</span>
+                            <span class="text-zinc-600 text-[11px] ml-2 flex-shrink-0">無試聽 🔒</span>
+                        </div>
+                    `;
+                }
+
+                let rowClass = 'hover:bg-studio-800 text-zinc-300';
+                if (isCurrent) {
+                    rowClass = 'bg-bc-500/20 text-bc-400 font-bold border border-bc-500/40';
+                } else if (isPlayed) {
+                    rowClass = 'text-zinc-500 opacity-60 hover:text-zinc-300 hover:opacity-100';
+                }
+
+                return `
+                    <div onclick="playTrackDirect(${rel.id}, ${idx})" 
+                         class="flex items-center justify-between px-2.5 py-1.5 rounded-xl text-xs font-mono transition cursor-pointer ${rowClass}">
+                        <span class="truncate">${t.track_num || idx + 1}. ${t.title}</span>
+                        <span class="text-zinc-500 text-[11px] ml-2 flex-shrink-0">${formatTime(t.duration)} ${isCurrent && !audio.paused ? '⏸' : '▶'}</span>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function findReleaseById(id) {
+            for (let w of releasesData) {
+                for (let r of w.releases) {
+                    if (r.id === id) return r;
+                }
+            }
+            return null;
+        }
+
+        function closePlayer() {
+            if (pendingListenedReleaseId) commitPendingListened(pendingListenedReleaseId);
+            else if (currentFilter === 'unlistened' && activeRelease && activeRelease.is_listened) fetchReleases();
+            document.getElementById('player-dock').classList.remove('translate-y-0');
+            document.getElementById('player-dock').classList.add('translate-y-full');
+            document.getElementById('multi-track-drawer').classList.add('hidden');
+            const bpmPanel = document.getElementById('bpm-panel');
+            if (bpmPanel) bpmPanel.classList.add('hidden');
+            document.getElementById('progress-bar-fill').style.width = '0%';
+            audio.pause();
+            audio.src = '';
+            if (activeTimer) clearTimeout(activeTimer);
+            activeRelease = null;
+        }
+
+        async function toggleListen(id) {
+            if (pendingListenedReleaseId === id) {
+                pendingListenedReleaseId = null;
+            }
+            await fetch(`/api/releases/${id}/listened`, { method: 'PATCH' });
+            hubChannel.postMessage({ action: 'UPDATE_STATE' });
+            triggerHUD('✓', 'TOGGLED LISTENED');
+            
+            const relObj = findReleaseById(id);
+            if (activeRelease && activeRelease.id === id) {
+                activeRelease.is_listened = !activeRelease.is_listened;
+                if (relObj) relObj.is_listened = activeRelease.is_listened ? 1 : 0;
+                
+                const listenBtn = document.getElementById('dock-btn-listen');
+                if (listenBtn) {
+                    listenBtn.innerHTML = activeRelease.is_listened ? DOCK_ICON_CHECKED : DOCK_ICON_UNCHECKED;
+                    listenBtn.title = activeRelease.is_listened ? '已聽 (點擊標記未聽)' : '標記已聽 (L)';
+                }
+                
+                const card = document.querySelector(`.release-card[data-id="${id}"]`);
+                if (card) {
+                    card.classList.toggle('opacity-55', Boolean(activeRelease.is_listened));
+                    const cardBtn = card.querySelector('button[title*="聽"]');
+                    if (cardBtn) {
+                        cardBtn.innerHTML = activeRelease.is_listened ? ICON_CHECKED : ICON_UNCHECKED;
+                        cardBtn.title = activeRelease.is_listened ? '已聽 (點擊標記未聽)' : '標記已聽 (L)';
+                        if (activeRelease.is_listened) {
+                            cardBtn.className = 'p-1.5 rounded-lg border transition bg-studio-800/80 text-bc-400 border-bc-500/30';
+                        } else {
+                            cardBtn.className = 'p-1.5 rounded-lg border transition bg-studio-900 text-zinc-500 hover:text-zinc-300 border-studio-border hover:border-zinc-600';
+                        }
+                    }
+                }
+                // 當前播放發行被標記時，若在未聽篩選下暫不重繪 DOM，維持卡片錨定防跳動
+                if (currentFilter !== 'unlistened') {
+                    fetchReleases();
+                }
+            } else {
+                if (relObj) relObj.is_listened = 1 - (relObj.is_listened || 0);
+                fetchReleases();
+            }
+        }
+
+        async function toggleStar(id) {
+            const res = await fetch(`/api/releases/${id}/star`, { method: 'PATCH' });
+            if (res.ok) {
+                const data = await res.json();
+                if (activeRelease && activeRelease.id === id) {
+                    activeRelease.is_starred = data.is_starred;
+                    const starBtn = document.getElementById('dock-btn-star');
+                    if (starBtn) {
+                        starBtn.innerText = data.is_starred ? '⭐' : '☆';
+                        starBtn.className = data.is_starred ? "text-amber-400 text-base transition p-1 shadow-amber-glow" : "text-zinc-500 hover:text-amber-400 text-base transition p-1";
+                    }
+                }
+                if (data.is_starred) {
+                    triggerHUD('⭐', 'STARRED & LISTENED');
+                } else {
+                    triggerHUD('☆', 'UNSTARRED');
+                }
+            } else {
+                triggerHUD('⭐', 'TOGGLED STARRED');
+            }
+            hubChannel.postMessage({ action: 'UPDATE_STATE' });
+            fetchReleases();
+        }
+
+        function setFilter(flt) {
+            currentFilter = flt;
+            limitWeeks = 12;
+            ['unlistened', 'all', 'starred'].forEach(f => {
+                const btn = document.getElementById(`btn-flt-${f}`);
+                if (!btn) return;
+                if (f === 'starred') {
+                    if (flt === 'starred') {
+                        btn.className = "px-3 py-1 rounded-lg bg-amber-500 text-studio-950 font-black transition shadow-amber-glow flex items-center justify-center text-base";
+                    } else {
+                        btn.className = "px-3 py-1 rounded-lg text-zinc-400 hover:text-amber-400 transition flex items-center justify-center text-base";
+                    }
+                } else {
+                    if (f === flt) {
+                        btn.className = "px-3.5 py-1 rounded-lg bg-bc-500 text-white font-semibold transition shadow-sm flex items-center gap-1.5";
+                    } else {
+                        btn.className = "px-3.5 py-1 rounded-lg text-zinc-400 hover:text-zinc-200 transition flex items-center gap-1.5";
+                    }
+                }
+            });
+            fetchReleases();
+        }
+
+        function setupSearch() {
+            const input = document.getElementById('search-input');
+            const clearBtn = document.getElementById('clear-search');
+
+            input.addEventListener('input', (e) => {
+                currentQuery = e.target.value;
+                clearBtn.classList.toggle('hidden', !currentQuery);
+                if (searchDebounce) clearTimeout(searchDebounce);
+                searchDebounce = setTimeout(fetchReleases, 300);
+            });
+
+            clearBtn.addEventListener('click', () => {
+                input.value = '';
+                currentQuery = '';
+                clearBtn.classList.add('hidden');
+                fetchReleases();
+            });
+        }
+
+        // 鍵盤操作監聽
+        function setupKeyboard() {
+            window.addEventListener('keydown', (e) => {
+                if (['input', 'textarea'].includes(document.activeElement.tagName.toLowerCase())) {
+                    if (e.key === 'Escape') {
+                        document.activeElement.blur();
+                        document.getElementById('search-input').value = '';
+                        currentQuery = '';
+                        document.getElementById('clear-search').classList.add('hidden');
+                        fetchReleases();
+                    }
+                    return;
+                }
+
+                if (e.code === 'Space') {
+                    e.preventDefault();
+                    togglePlayPause();
+                } else if (e.key === '[' || e.key === '【') {
+                    e.preventDefault();
+                    playPrevTrack();
+                } else if (e.key === ']' || e.key === '】') {
+                    e.preventDefault();
+                    playNextTrack();
+                } else if (e.key === 'ArrowLeft') {
+                    e.preventDefault();
+                    seekRelative(-10);
+                } else if (e.key === 'ArrowRight') {
+                    e.preventDefault();
+                    seekRelative(10);
+                } else if (e.key === '1') {
+                    e.preventDefault();
+                    jumpToFraction(1/3);
+                } else if (e.key === '2') {
+                    e.preventDefault();
+                    jumpToFraction(0.5);
+                } else if (e.key === '3') {
+                    e.preventDefault();
+                    jumpToFraction(2/3);
+                } else if (e.key === 'j' || e.key === 'J') {
+                    if (selectedIndex < flatCards.length - 1) { 
+                        selectedIndex++; 
+                        updateCardSelection(); 
+                        triggerHUD('↓', `RELEASE: ${selectedIndex + 1}/${flatCards.length}`);
+                    }
+                } else if (e.key === 'k' || e.key === 'K') {
+                    if (selectedIndex > 0) { 
+                        selectedIndex--; 
+                        updateCardSelection(); 
+                        triggerHUD('↑', `RELEASE: ${selectedIndex + 1}/${flatCards.length}`);
+                    }
+                } else if (e.key === 'Enter') {
+                    if (selectedIndex >= 0 && selectedIndex < flatCards.length) {
+                        playRelease(flatCards[selectedIndex].data);
+                        triggerHUD('▶', 'PLAY SELECTED');
+                    }
+                } else if (e.key === 'l' || e.key === 'L') {
+                    if (activeRelease) toggleListen(activeRelease.id);
+                    else if (selectedIndex >= 0) toggleListen(flatCards[selectedIndex].data.id);
+                } else if (e.key === 's' || e.key === 'S') {
+                    if (activeRelease) toggleStar(activeRelease.id);
+                    else if (selectedIndex >= 0) toggleStar(flatCards[selectedIndex].data.id);
+                } else if (e.key === 'o' || e.key === 'O') {
+                    if (activeRelease) {
+                        window.open(activeRelease.url, '_blank');
+                        triggerHUD('↗', 'OPEN BANDCAMP');
+                    } else if (selectedIndex >= 0) {
+                        window.open(flatCards[selectedIndex].data.url, '_blank');
+                        triggerHUD('↗', 'OPEN BANDCAMP');
+                    }
+                } else if (e.key === 'm' || e.key === 'M') {
+                    toggleMute();
+                } else if (e.key === '?') {
+                    openHelp();
+                } else if (e.key === 't' || e.key === 'T') {
+                    const editMode = document.getElementById('bpm-edit-mode');
+                    if (editMode && !editMode.classList.contains('hidden')) {
+                        e.preventDefault();
+                        handleTapTempo();
+                    }
+                } else if (e.key === 'Escape') {
+                    const settingsModal = document.getElementById('settings-modal');
+                    const helpModal = document.getElementById('help-modal');
+                    const bpmPanel = document.getElementById('bpm-panel');
+                    const drawer = document.getElementById('multi-track-drawer');
+                    const dock = document.getElementById('player-dock');
+
+                    if (settingsModal && !settingsModal.classList.contains('hidden')) {
+                        e.preventDefault();
+                        closeSettings();
+                    } else if (helpModal && !helpModal.classList.contains('hidden')) {
+                        e.preventDefault();
+                        closeHelp();
+                    } else if (bpmPanel && !bpmPanel.classList.contains('hidden')) {
+                        e.preventDefault();
+                        const editMode = document.getElementById('bpm-edit-mode');
+                        if (editMode && !editMode.classList.contains('hidden')) {
+                            toggleBpmEditMode();
+                        } else {
+                            bpmPanel.classList.add('hidden');
+                        }
+                    } else if (drawer && !drawer.classList.contains('hidden')) {
+                        e.preventDefault();
+                        drawer.classList.add('hidden');
+                    } else if (dock && dock.classList.contains('translate-y-0')) {
+                        e.preventDefault();
+                        closePlayer();
+                    }
+                }
+            });
+        }
+
+        function updateCardSelection() {
+            flatCards.forEach((c, idx) => {
+                if (idx === selectedIndex) {
+                    c.element.classList.add('selected-card');
+                    c.element.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                } else {
+                    c.element.classList.remove('selected-card');
+                }
+            });
+        }
+
+        // 頂部 Toast 橫條通知控制
+        let syncToastTimer = null;
+        function showSyncToast(message) {
+            const banner = document.getElementById('sync-toast-banner');
+            const msgEl = document.getElementById('sync-toast-message');
+            if (!banner || !msgEl) return;
+            msgEl.innerText = message;
+            banner.classList.remove('hidden');
+            if (syncToastTimer) clearTimeout(syncToastTimer);
+            syncToastTimer = setTimeout(() => {
+                closeSyncToast();
+            }, 5000);
+        }
+        function closeSyncToast() {
+            const banner = document.getElementById('sync-toast-banner');
+            if (banner) banner.classList.add('hidden');
+            if (syncToastTimer) clearTimeout(syncToastTimer);
+        }
+        function closeToast() {
+            closeSyncToast();
+        }
+
+        // 同步數量設定與持久化
+        const SYNC_LIMIT_STORAGE_KEY = 'bandcamp_hub_sync_limit';
+        function initSyncLimit() {
+            const saved = localStorage.getItem(SYNC_LIMIT_STORAGE_KEY);
+            const select = document.getElementById('sync-limit-select');
+            if (select && saved && ['20', '50', '100', '200'].includes(saved)) {
+                select.value = saved;
+            }
+        }
+        function onSyncLimitChange(val) {
+            localStorage.setItem(SYNC_LIMIT_STORAGE_KEY, val);
+        }
+
+        // 同步流程
+        function startSync(forceRescan = false) {
+            const btn = document.getElementById('sync-btn');
+            const icon = document.getElementById('sync-icon');
+            const text = document.getElementById('sync-text');
+            const select = document.getElementById('sync-limit-select');
+            const selectedLimit = select ? (parseInt(select.value, 10) || 50) : 50;
+
+            btn.disabled = true;
+            if (select) select.disabled = true;
+            icon.classList.add('animate-spin');
+            text.innerText = "同步中...";
+
+            let isFinished = false;
+            const url = forceRescan 
+                ? `/api/sync/stream?force_rescan=true`
+                : `/api/sync/stream?force_rescan=false&limit=${selectedLimit}`;
+            const evtSource = new EventSource(url);
+            
+            evtSource.onmessage = async (e) => {
+                try {
+                    const data = JSON.parse(e.data);
+                    if (data.status === 'progress') {
+                        text.innerText = `(${data.current}/${data.total})`;
+                    } else if (data.status === 'auth_expired') {
+                        isFinished = true;
+                        evtSource.close();
+                        btn.disabled = false;
+                        if (select) select.disabled = false;
+                        icon.classList.remove('animate-spin');
+                        text.innerText = "立即同步";
+                        alert(data.message);
+                        checkAuthStatus();
+                        openSettings();
+                    } else if (data.status === 'complete') {
+                        isFinished = true;
+                        evtSource.close();
+                        await fetchReleases();
+                        hubChannel.postMessage({ action: 'UPDATE_STATE' });
+                        icon.classList.remove('animate-spin');
+                        text.innerText = data.added > 0 ? `已收錄 ${data.added} 首` : '已是最新';
+                        if (data.message && data.message.includes('已達單次上限')) {
+                            showSyncToast(data.message);
+                        }
+                        setTimeout(() => {
+                            btn.disabled = false;
+                            if (select) select.disabled = false;
+                            text.innerText = "立即同步";
+                        }, 2500);
+                    } else if (data.status === 'error' || data.status === 'conflict') {
+                        isFinished = true;
+                        evtSource.close();
+                        btn.disabled = false;
+                        if (select) select.disabled = false;
+                        icon.classList.remove('animate-spin');
+                        text.innerText = "立即同步";
+                        alert(data.message);
+                        await fetchReleases();
+                    }
+                } catch (err) {
+                    console.error("Sync parse error:", err);
+                }
+            };
+            
+            evtSource.onerror = async () => {
+                evtSource.close();
+                if (!isFinished) {
+                    await fetchReleases();
+                    btn.disabled = false;
+                    if (select) select.disabled = false;
+                    icon.classList.remove('animate-spin');
+                    text.innerText = "立即同步";
+                }
+            };
+        }
+
+        async function checkAuthStatus() {
+            try {
+                const res = await fetch('/api/auth/status');
+                const data = await res.json();
+                const authBtn = document.getElementById('auth-connect-btn');
+                if (data.is_connected) {
+                    authBtn.innerText = "中斷連結";
+                    authBtn.className = "px-4 py-2 bg-rose-600 hover:bg-rose-700 font-semibold rounded-xl text-xs font-mono text-white";
+                } else {
+                    authBtn.innerText = "連結帳號";
+                    authBtn.className = "px-4 py-2 bg-bc-500 hover:bg-bc-600 font-semibold rounded-xl text-xs font-mono text-white";
+                }
+            } catch (err) {
+                console.error("checkAuthStatus error:", err);
+            }
+        }
+
+        async function handleAuthAction() {
+            const res = await fetch('/api/auth/status');
+            const data = await res.json();
+            if (data.is_connected) {
+                if (confirm("確定要中斷 Gmail 授權嗎？")) {
+                    await fetch('/api/auth/disconnect', { method: 'POST' });
+                    checkAuthStatus();
+                }
+            } else {
+                const port = window.location.port || 8000;
+                const urlRes = await fetch(`/api/auth/url?port=${port}`);
+                const urlData = await urlRes.json();
+                window.open(urlData.auth_url, '_blank', 'width=600,height=700');
+            }
+        }
+
+        async function uploadCreds(input) {
+            if (!input.files[0]) return;
+            const formData = new FormData();
+            formData.append('file', input.files[0]);
+            const res = await fetch('/api/auth/upload-credentials', { method: 'POST', body: formData });
+            if (res.ok) alert("憑證上傳成功！");
+            else alert("憑證格式錯誤，請上傳 OAuth 用戶端 JSON。");
+            checkAuthStatus();
+        }
+
+        async function submitReset() {
+            const confirmVal = document.getElementById('reset-confirm-input').value;
+            const res = await fetch('/api/database/reset', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ confirmation: confirmVal })
+            });
+            if (res.ok) {
+                const data = await res.json();
+                alert(`資料庫已重設！備份快照：${data.backup}`);
+                closeSettings();
+                fetchReleases();
+            } else {
+                const err = await res.json();
+                alert(`錯誤: ${err.detail}`);
+            }
+        }
+
+        function openSettings() { document.getElementById('settings-modal').classList.remove('hidden'); }
+        function closeSettings() { document.getElementById('settings-modal').classList.add('hidden'); }
+        function openHelp() { document.getElementById('help-modal').classList.remove('hidden'); }
+        function closeHelp() { document.getElementById('help-modal').classList.add('hidden'); }
+    </script>
+</body>
+</html>
